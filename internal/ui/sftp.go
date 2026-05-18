@@ -1244,6 +1244,27 @@ func colorHints(keys []keyHint) string {
 	return b.String()
 }
 
+// centerTitle renders a title bar centered over body, sized to body's max line width.
+// Returns title line + "\n" + body.
+func centerTitle(body, title string) string {
+	maxW := 0
+	for _, line := range strings.Split(body, "\n") {
+		if w := lipgloss.Width(line); w > maxW {
+			maxW = w
+		}
+	}
+	if maxW < lipgloss.Width(title) {
+		maxW = lipgloss.Width(title)
+	}
+	titleLine := lipgloss.NewStyle().
+		Width(maxW).
+		Align(lipgloss.Center).
+		Bold(true).
+		Foreground(lipgloss.Color(gbYellow)).
+		Render(title)
+	return titleLine + "\n" + body
+}
+
 func renderHelpBox(width int) string {
 	groups := []struct {
 		title string
@@ -1295,15 +1316,14 @@ func renderHelpBox(width int) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(StyleTitle.Render("Keyboard shortcuts"))
-	b.WriteString("\n")
-	for _, g := range groups {
-		b.WriteString("\n")
-		b.WriteString(StyleSection.Render("  " + g.title))
+	for gi, g := range groups {
+		if gi > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(StyleSection.Render(g.title))
 		b.WriteString("\n")
 		for _, k := range g.keys {
-			line := "  " +
-				StyleKeyBracket.Render("[") +
+			line := StyleKeyBracket.Render("[") +
 				StyleKey.Render(k.Key) +
 				StyleKeyBracket.Render("] ") +
 				StyleKeyLabel.Render(k.Label)
@@ -1312,24 +1332,23 @@ func renderHelpBox(width int) string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(StyleHelp.Render("  press any key to close"))
-	return StyleBorder.Width(width).Render(b.String())
+	b.WriteString(StyleHelp.Render("press any key to close"))
+	_ = width
+	return StyleBorder.Render(centerTitle(b.String(), "Keyboard shortcuts"))
 }
 
-func renderConfirmBox(action string, targets []sftppkg.Entry, width int) string {
+func renderConfirmBox(action string, targets []sftppkg.Entry, maxWidth int) string {
 	var b strings.Builder
 	title := action
 	if len(title) > 0 {
 		title = strings.ToUpper(title[:1]) + title[1:]
 	}
-	b.WriteString(StyleTitle.Render(title + " confirmation"))
-	b.WriteString("\n\n")
-	b.WriteString(StyleNormal.Render(fmt.Sprintf("  %s %d item(s)?", action, len(targets))))
+	b.WriteString(StyleNormal.Render(fmt.Sprintf("%s %d item(s)?", action, len(targets))))
 	b.WriteString("\n\n")
 	maxList := 6
 	for i, e := range targets {
 		if i >= maxList {
-			b.WriteString(StyleHelp.Render(fmt.Sprintf("  ... +%d more", len(targets)-maxList)))
+			b.WriteString(StyleHelp.Render(fmt.Sprintf("… +%d more", len(targets)-maxList)))
 			b.WriteString("\n")
 			break
 		}
@@ -1337,11 +1356,11 @@ func renderConfirmBox(action string, targets []sftppkg.Entry, width int) string 
 		if e.IsDir {
 			name += "/"
 		}
-		b.WriteString(StyleNormal.Render("  - " + truncate(name, width-8)))
+		b.WriteString(StyleNormal.Render("- " + truncate(name, maxWidth-6)))
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(StyleKeyBracket.Render("  ["))
+	b.WriteString(StyleKeyBracket.Render("["))
 	b.WriteString(StyleError.Render("y"))
 	b.WriteString(StyleKeyBracket.Render("] "))
 	b.WriteString(StyleKeyLabel.Render("yes  "))
@@ -1351,7 +1370,7 @@ func renderConfirmBox(action string, targets []sftppkg.Entry, width int) string 
 	b.WriteString(StyleKey.Render("Esc"))
 	b.WriteString(StyleKeyBracket.Render("] "))
 	b.WriteString(StyleKeyLabel.Render("cancel"))
-	return StyleConfirm.Width(width).Render(b.String())
+	return StyleConfirm.Render(centerTitle(b.String(), title+" confirmation"))
 }
 
 func overlayCenter(base, box string, width, height int) string {
@@ -1405,7 +1424,7 @@ func overlayBottom(base, box string) string {
 	return strings.Join(baseLines, "\n")
 }
 
-func renderInfoBox(e sftppkg.Entry, pane Pane, localDir, remoteDir string, width int) string {
+func renderInfoBox(e sftppkg.Entry, pane Pane, localDir, remoteDir string, maxWidth int) string {
 	kind := "file"
 	if e.IsDir {
 		kind = "directory"
@@ -1419,23 +1438,20 @@ func renderInfoBox(e sftppkg.Entry, pane Pane, localDir, remoteDir string, width
 		dir = remoteDir
 	}
 	full := dir + "/" + e.Name
-	body := StyleTitle.Render("File info") + "\n" +
-		StyleNormal.Render(fmt.Sprintf("  name : %s", e.Name)) + "\n" +
-		StyleNormal.Render(fmt.Sprintf("  kind : %s", kind)) + "\n" +
-		StyleNormal.Render(fmt.Sprintf("  size : %s (%d bytes)", humanSize(e.Size), e.Size)) + "\n" +
-		StyleNormal.Render(fmt.Sprintf("  mtime: %s", mt)) + "\n" +
-		StyleNormal.Render(fmt.Sprintf("  path : %s", truncate(full, width-12))) + "\n" +
-		StyleNormal.Render(fmt.Sprintf("  pane : %s", paneLabel(pane))) + "\n" +
-		StyleHelp.Render("  [any key] close")
-	return StyleBorder.Width(width).Render(body)
+	body := StyleNormal.Render(fmt.Sprintf("name : %s", e.Name)) + "\n" +
+		StyleNormal.Render(fmt.Sprintf("kind : %s", kind)) + "\n" +
+		StyleNormal.Render(fmt.Sprintf("size : %s (%d bytes)", humanSize(e.Size), e.Size)) + "\n" +
+		StyleNormal.Render(fmt.Sprintf("mtime: %s", mt)) + "\n" +
+		StyleNormal.Render(fmt.Sprintf("path : %s", truncate(full, maxWidth-12))) + "\n" +
+		StyleNormal.Render(fmt.Sprintf("pane : %s", paneLabel(pane))) + "\n" +
+		"\n" + StyleHelp.Render("[any key] close")
+	return StyleBorder.Render(centerTitle(body, "File info"))
 }
 
-func renderBookmarkBox(list []string, cursor, width int) string {
+func renderBookmarkBox(list []string, cursor, maxWidth int) string {
 	var b strings.Builder
-	b.WriteString(StyleTitle.Render(fmt.Sprintf("Bookmarks (%d)", len(list))))
-	b.WriteString("\n")
 	if len(list) == 0 {
-		b.WriteString(StyleHelp.Render("  (empty — press [b] in pane to add)"))
+		b.WriteString(StyleHelp.Render("(empty — press [b] in pane to add)"))
 		b.WriteString("\n")
 	}
 	max := 6
@@ -1448,24 +1464,24 @@ func renderBookmarkBox(list []string, cursor, width int) string {
 		end = len(list)
 	}
 	for i := start; i < end; i++ {
-		line := "  " + truncate(list[i], width-6)
+		name := truncate(list[i], maxWidth-4)
 		if i == cursor {
-			line = StyleSelected.Render("> " + truncate(list[i], width-6))
+			b.WriteString(StyleSelected.Render("▸ " + name))
 		} else {
-			line = StyleNormal.Render(line)
+			b.WriteString(StyleNormal.Render("  " + name))
 		}
-		b.WriteString(line)
 		b.WriteString("\n")
 	}
-	b.WriteString(StyleHelp.Render("  [↑↓] move  [Enter] jump  [d] del  [Esc] close"))
-	return StyleBorder.Width(width).Render(b.String())
+	b.WriteString("\n")
+	b.WriteString(StyleHelp.Render("[↑↓] move  [Enter] jump  [d] del  [Esc] close"))
+	title := fmt.Sprintf("Bookmarks (%d)", len(list))
+	return StyleBorder.Render(centerTitle(b.String(), title))
 }
 
-func renderPromptBox(action, input string, width int) string {
-	body := StyleTitle.Render(action) + "\n\n" +
-		StyleSelected.Render("  "+input+"_") + "\n\n" +
-		StyleHelp.Render("  [Enter] confirm  [Esc] cancel")
-	return StyleBorder.Width(width).Render(body)
+func renderPromptBox(action, input string, _ int) string {
+	body := StyleSelected.Render(input+"_") + "\n\n" +
+		StyleHelp.Render("[Enter] confirm  [Esc] cancel")
+	return StyleBorder.Render(centerTitle(body, action))
 }
 
 func transferBar(done, total int64, width int) string {
