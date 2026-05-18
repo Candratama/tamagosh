@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -259,8 +260,10 @@ func (a AppModel) View() string {
 	}
 
 	centered := func(inner string) string {
-		stack := lipgloss.JoinVertical(lipgloss.Center, renderHeader(), "", inner)
-		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, stack)
+		header := centerBlockHoriz(renderHeader(), w)
+		body := centerBlockHoriz(inner, w)
+		block := header + "\n\n" + body
+		return centerBlockVert(block, h)
 	}
 
 	switch a.Mode {
@@ -280,6 +283,35 @@ func (a AppModel) View() string {
 			StyleHelp.Render("  establishing SSH session...")
 		return centered(StyleBorder.Render(body))
 	default:
-		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, a.List.View())
+		block := centerBlockHoriz(a.List.View(), w)
+		return centerBlockVert(block, h)
 	}
+}
+
+func centerBlockHoriz(block string, w int) string {
+	lines := strings.Split(block, "\n")
+	maxW := 0
+	for _, l := range lines {
+		if lw := lipgloss.Width(l); lw > maxW {
+			maxW = lw
+		}
+	}
+	pad := (w - maxW) / 2
+	if pad < 0 {
+		pad = 0
+	}
+	p := strings.Repeat(" ", pad)
+	for i := range lines {
+		lines[i] = p + lines[i]
+	}
+	return strings.Join(lines, "\n")
+}
+
+func centerBlockVert(block string, h int) string {
+	lines := strings.Split(block, "\n")
+	pad := (h - len(lines)) / 2
+	if pad < 0 {
+		pad = 0
+	}
+	return strings.Repeat("\n", pad) + block
 }

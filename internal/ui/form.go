@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/candratama/sshm/internal/config"
 )
@@ -135,55 +134,32 @@ func (m FormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m FormModel) View() string {
+	var b strings.Builder
 	title := "New Connection"
 	if m.IsEdit {
 		title = "Edit " + m.Original
 	}
-
-	var fields strings.Builder
+	b.WriteString(StyleTitle.Render(title))
+	b.WriteString("\n\n")
 	for i, f := range m.Fields {
 		val := f.Value
 		if f.Secret {
 			val = strings.Repeat("*", len(f.Value))
 		}
-		line := fmt.Sprintf("%-9s : %s", f.Label, val)
+		line := fmt.Sprintf("  %-9s : %s", f.Label, val)
 		if i == m.Focus {
 			line = StyleSelected.Render(line + "_")
 		} else {
 			line = StyleNormal.Render(line)
 		}
-		fields.WriteString(line)
-		fields.WriteString("\n")
+		b.WriteString(line)
+		b.WriteString("\n")
 	}
-
-	help := StyleHelp.Render("[Enter] save   [Esc] cancel   [Tab] next")
-	var errLine string
+	b.WriteString("\n")
+	b.WriteString(StyleHelp.Render("  [Enter] save   [Esc] cancel   [Tab] next"))
 	if m.Err != "" {
-		errLine = StyleError.Render(m.Err)
+		b.WriteString("\n")
+		b.WriteString(StyleError.Render("  " + m.Err))
 	}
-
-	const boxW = 60
-	innerW := boxW - 8 // padding 1,4 → 8 cols total horizontal padding
-
-	fieldsBlock := strings.TrimRight(fields.String(), "\n")
-	fieldsCentered := lipgloss.PlaceHorizontal(innerW, lipgloss.Center, fieldsBlock)
-
-	inner := lipgloss.JoinVertical(lipgloss.Center,
-		StyleTitle.Render(title),
-		"",
-		fieldsCentered,
-		"",
-		help,
-	)
-	if errLine != "" {
-		inner = lipgloss.JoinVertical(lipgloss.Center, inner, errLine)
-	}
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(gbAqua)).
-		Padding(1, 4).
-		Width(boxW).
-		Render(inner)
-	return box
+	return StyleBorder.Render(b.String())
 }
