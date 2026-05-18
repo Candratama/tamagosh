@@ -161,15 +161,5 @@ func (m ListModel) View() string {
 		Padding(1, 3)
 	box := listStyle.Render(b.String())
 
-	text := lipgloss.NewStyle().Foreground(lipgloss.Color(gbPurple)).Bold(true).Render(splashText)
-	ghost := lipgloss.NewStyle().Foreground(lipgloss.Color(gbYellow)).Bold(true).Render(splashGhost)
-	logo := lipgloss.JoinHorizontal(lipgloss.Center, text, "    ", ghost)
-
-	tagline := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(gbFgMute)).
-		Italic(true).
-		Render("· terminal SSH manager ·")
-
-	header := lipgloss.JoinVertical(lipgloss.Center, logo, "", tagline)
-	return lipgloss.JoinVertical(lipgloss.Center, header, "", box)
+	return lipgloss.JoinVertical(lipgloss.Center, renderHeader(), "", box)
 }

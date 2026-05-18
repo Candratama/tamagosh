@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/candratama/sshm/internal/bookmark"
 	"github.com/candratama/sshm/internal/config"
@@ -248,31 +249,37 @@ func (a AppModel) handleSftp(c config.Connection) (tea.Model, tea.Cmd) {
 }
 
 func (a AppModel) View() string {
+	w := a.Width
+	h := a.Height
+	if w == 0 {
+		w = 80
+	}
+	if h == 0 {
+		h = 24
+	}
+
+	centered := func(inner string) string {
+		stack := lipgloss.JoinVertical(lipgloss.Center, renderHeader(), "", inner)
+		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, stack)
+	}
+
 	switch a.Mode {
 	case ModeForm:
-		return a.Form.View()
+		return centered(a.Form.View())
 	case ModeSftp:
 		return a.Sftp.View()
 	case ModeConfirmDelete:
-		return StyleBorder.Render(
+		box := StyleBorder.Render(
 			StyleTitle.Render("Delete connection") + "\n\n" +
 				fmt.Sprintf("  Delete %q? [y/N]", a.Pending.Name),
 		)
+		return centered(box)
 	case ModeConnecting:
 		body := StyleTitle.Render("Connecting") + "\n\n" +
 			fmt.Sprintf("  → %s@%s:%d", a.Pending.User, a.Pending.Host, a.Pending.Port) + "\n" +
 			StyleHelp.Render("  establishing SSH session...")
-		return StyleBorder.Render(body)
+		return centered(StyleBorder.Render(body))
 	default:
-		view := a.List.View()
-		w := a.Width
-		h := a.Height
-		if w == 0 {
-			w = 80
-		}
-		if h == 0 {
-			h = 24
-		}
-		return overlayOnBackground(view, w, h)
+		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, a.List.View())
 	}
 }
