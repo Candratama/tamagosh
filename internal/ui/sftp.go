@@ -915,6 +915,8 @@ func (m SftpModel) View() string {
 		boxW = 30
 	}
 
+	base := joined + "\n" + help
+
 	var overlay string
 	switch {
 	case m.ShowInfo:
@@ -926,9 +928,24 @@ func (m SftpModel) View() string {
 	}
 
 	if overlay != "" {
-		return joined + "\n" + overlay
+		return overlayBottom(base, overlay)
 	}
-	return joined + "\n" + help
+	return base
+}
+
+func overlayBottom(base, box string) string {
+	baseLines := strings.Split(base, "\n")
+	boxLines := strings.Split(box, "\n")
+	bl := len(baseLines)
+	btl := len(boxLines)
+	start := bl - btl
+	if start < 0 {
+		start = 0
+	}
+	for i := 0; i < btl && start+i < bl; i++ {
+		baseLines[start+i] = boxLines[i]
+	}
+	return strings.Join(baseLines, "\n")
 }
 
 func renderInfoBox(e sftppkg.Entry, pane Pane, localDir, remoteDir string, width int) string {
