@@ -254,8 +254,7 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.TransferActive = false
 			return m, nil
 		}
-		if msg.Idx >= msg.Total {
-			m.TransferActive = false
+		if msg.Idx >= msg.Total && msg.Total > 0 {
 			m.Info = fmt.Sprintf("copied %d file(s)", msg.Total)
 			m.clearSelection()
 			if m.Active == PaneLocal {
@@ -264,6 +263,9 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.refreshLocal()
 			}
 		}
+		return m, nil
+	case sftpTransferEndMsg:
+		m.TransferActive = false
 		return m, nil
 	case tea.KeyMsg:
 		if m.Filtering {
@@ -349,7 +351,8 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "q":
 				return m, func() tea.Msg { return SftpQuitMsg{} }
 			case "c":
-				return m, m.copy()
+				cmd := m.copy()
+				return m, cmd
 			case "d":
 				m.delete()
 			case "r":
@@ -510,7 +513,11 @@ func (m *SftpModel) copy() tea.Cmd {
 	remoteDir := m.RemoteDir
 	total := len(targets)
 
-	cmds := make([]tea.Cmd, 0, len(targets))
+	cmds := make([]tea.Cmd, 0, len(targets)+1)
+	firstName := targets[0].Name
+	cmds = append(cmds, tea.Tick(time.Millisecond*60, func(time.Time) tea.Msg {
+		return SftpProgressMsg{Idx: 0, Total: total, Name: firstName}
+	}))
 	for i, e := range targets {
 		idx := i + 1
 		ent := e
@@ -528,8 +535,13 @@ func (m *SftpModel) copy() tea.Cmd {
 			return SftpProgressMsg{Idx: idx, Total: total, Name: ent.Name, Err: err}
 		})
 	}
+	cmds = append(cmds, tea.Tick(time.Millisecond*400, func(time.Time) tea.Msg {
+		return sftpTransferEndMsg{}
+	}))
 	return tea.Sequence(cmds...)
 }
+
+type sftpTransferEndMsg struct{}
 
 func (m *SftpModel) delete() {
 	vis := m.visible(m.Active)
