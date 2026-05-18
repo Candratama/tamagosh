@@ -162,10 +162,16 @@ func (m FormModel) View() string {
 		errLine = StyleError.Render(m.Err)
 	}
 
+	const boxW = 60
+	innerW := boxW - 8 // padding 1,4 → 8 cols total horizontal padding
+
+	fieldsBlock := strings.TrimRight(fields.String(), "\n")
+	fieldsCentered := lipgloss.PlaceHorizontal(innerW, lipgloss.Center, fieldsBlock)
+
 	inner := lipgloss.JoinVertical(lipgloss.Center,
 		StyleTitle.Render(title),
 		"",
-		strings.TrimRight(fields.String(), "\n"),
+		fieldsCentered,
 		"",
 		help,
 	)
@@ -177,8 +183,7 @@ func (m FormModel) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(gbAqua)).
 		Padding(1, 4).
-		Width(60).
-		Align(lipgloss.Center).
+		Width(boxW).
 		Render(inner)
 	return box
 }
