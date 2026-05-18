@@ -111,9 +111,9 @@ func overlayOnBackground(view string, width, height int) string {
 
 func renderHeader() string {
 	text := lipgloss.NewStyle().Foreground(lipgloss.Color(gbPurple)).Bold(true).Render(splashText)
-	ghost := lipgloss.NewStyle().Foreground(lipgloss.Color(gbYellow)).Bold(true).Render(splashGhost)
+	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(gbYellow)).Bold(true).Render(splashArt)
 	tagline := lipgloss.NewStyle().Foreground(lipgloss.Color(gbFgMute)).Italic(true).Render("· terminal SSH manager ·")
-	return lipgloss.JoinVertical(lipgloss.Center, ghost, "", text, "", tagline)
+	return lipgloss.JoinVertical(lipgloss.Center, icon, "", text, "", tagline)
 }
 
 func renderSplash(width, height int) string {
