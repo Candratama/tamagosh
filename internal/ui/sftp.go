@@ -1911,6 +1911,13 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 	}
 
 	client := m.Client
+	// snapshot file state before editor so we can detect changes
+	var beforeMTime time.Time
+	var beforeSize int64
+	if info, ierr := os.Stat(localPath); ierr == nil {
+		beforeMTime = info.ModTime()
+		beforeSize = info.Size()
+	}
 	// sh -c "clear; exec $0 $1" → clear main screen before editor renders,
 	// preventing scrollback flash between alt-screen exit and editor startup
 	cmd := exec.Command("sh", "-c", `clear; exec "$0" "$1"`, editor, localPath)
@@ -1920,8 +1927,17 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 			return editorDoneMsg{err: err, pane: pane, cleanup: cleanup}
 		}
 		if pane == PaneRemote {
+			// skip upload if file unchanged (no save in editor)
+			changed := true
+			if info, ierr := os.Stat(localPath); ierr == nil {
+				if info.ModTime().Equal(beforeMTime) && info.Size() == beforeSize {
+					changed = false
+				}
+			}
+			if !changed {
+				return editorDoneMsg{pane: pane, cleanup: cleanup}
+			}
 			if uerr := client.Upload(localPath, remotePath); uerr != nil {
-				// preserve local edits so user can recover
 				return editorDoneMsg{
 					err:     fmt.Errorf("upload failed (edits kept at %s): %w", savedPath, uerr),
 					pane:    pane,
