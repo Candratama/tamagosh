@@ -1130,6 +1130,12 @@ func renderHelpBox(width int) string {
 			{"i", "show file info"},
 			{"r", "refresh both panes"},
 		}},
+		{"Mouse", []keyHint{
+			{"left-click", "focus pane + move cursor"},
+			{"double-click", "open folder under cursor"},
+			{"right-click", "toggle select on file"},
+			{"wheel up/dn", "scroll cursor in active pane"},
+		}},
 		{"System", []keyHint{
 			{"h or ?", "this help"},
 			{"q", "back to connection list"},
