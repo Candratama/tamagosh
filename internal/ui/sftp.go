@@ -80,6 +80,9 @@ type SftpModel struct {
 	BookmarkScope  string
 	BookmarkList   []string
 	BookmarkCursor int
+	lastClickPane  Pane
+	lastClickIdx   int
+	lastClickTime  time.Time
 }
 
 const (
@@ -319,6 +322,8 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Height = msg.Height
 		m.clampScroll()
 		return m, nil
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	case SftpRefreshMsg:
 		m.refreshLocal()
 		m.refreshRemote()
@@ -928,6 +933,143 @@ func (m SftpModel) View() string {
 		return overlayCenter(base, overlay, m.Width, m.Height)
 	}
 	return base
+}
+
+func (m SftpModel) paneLayout() (paneW int) {
+	paneW = (m.Width - 4) / 2
+	if paneW < 24 {
+		paneW = 24
+	}
+	return
+}
+
+func (m SftpModel) hitTestEntry(x, y int) (Pane, int, bool) {
+	paneW := m.paneLayout()
+	paneFullW := paneW + 2
+
+	var pane Pane
+	var inX int
+	if x < paneFullW {
+		pane = PaneLocal
+		inX = x
+	} else if x < paneFullW*2 {
+		pane = PaneRemote
+		inX = x - paneFullW
+	} else {
+		return PaneLocal, 0, false
+	}
+	if inX < 1 || inX >= paneFullW-1 {
+		return pane, 0, false
+	}
+
+	if y < 1 {
+		return pane, 0, false
+	}
+	contentRow := y - 1
+	if contentRow < 1 {
+		return pane, 0, false
+	}
+	entryRow := contentRow - 1
+
+	var scroll int
+	var entries []sftppkg.Entry
+	if pane == PaneLocal {
+		scroll = m.LocalScroll
+		entries = m.visible(PaneLocal)
+	} else {
+		scroll = m.RemoteScroll
+		entries = m.visible(PaneRemote)
+	}
+	idx := entryRow + scroll
+	if idx < 0 || idx >= len(entries) {
+		return pane, idx, false
+	}
+	return pane, idx, true
+}
+
+func (m SftpModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.ShowInfo || m.ShowHelp || m.PromptAction != "" || m.ConfirmAction != "" || len(m.BookmarkList) > 0 {
+		return m, nil
+	}
+
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		if m.Active == PaneLocal && m.LocalCursor > 0 {
+			m.LocalCursor--
+		} else if m.Active == PaneRemote && m.RemoteCursor > 0 {
+			m.RemoteCursor--
+		}
+		m.clampScroll()
+		return m, nil
+	case tea.MouseButtonWheelDown:
+		vis := m.visible(m.Active)
+		if m.Active == PaneLocal && m.LocalCursor < len(vis)-1 {
+			m.LocalCursor++
+		} else if m.Active == PaneRemote && m.RemoteCursor < len(vis)-1 {
+			m.RemoteCursor++
+		}
+		m.clampScroll()
+		return m, nil
+	case tea.MouseButtonLeft:
+		if msg.Action != tea.MouseActionPress {
+			return m, nil
+		}
+		pane, idx, ok := m.hitTestEntry(msg.X, msg.Y)
+		if !ok {
+			// click on pane border/title: just switch focus
+			paneW := m.paneLayout()
+			if msg.X < paneW+2 {
+				m.Active = PaneLocal
+			} else {
+				m.Active = PaneRemote
+			}
+			return m, nil
+		}
+		m.Active = pane
+		if pane == PaneLocal {
+			m.LocalCursor = idx
+		} else {
+			m.RemoteCursor = idx
+		}
+		m.clampScroll()
+		if m.lastClickPane == pane && m.lastClickIdx == idx && time.Since(m.lastClickTime) < 500*time.Millisecond {
+			m.descend()
+			m.clampScroll()
+			m.lastClickTime = time.Time{}
+			return m, nil
+		}
+		m.lastClickPane = pane
+		m.lastClickIdx = idx
+		m.lastClickTime = time.Now()
+		return m, nil
+	case tea.MouseButtonRight:
+		if msg.Action != tea.MouseActionPress {
+			return m, nil
+		}
+		pane, idx, ok := m.hitTestEntry(msg.X, msg.Y)
+		if !ok {
+			return m, nil
+		}
+		m.Active = pane
+		if pane == PaneLocal {
+			m.LocalCursor = idx
+		} else {
+			m.RemoteCursor = idx
+		}
+		sel := m.selectedAt(pane)
+		vis := m.visible(pane)
+		if idx < len(vis) && !vis[idx].IsDir {
+			name := vis[idx].Name
+			if sel[name] {
+				delete(sel, name)
+			} else {
+				sel[name] = true
+			}
+		}
+		m.clampScroll()
+		return m, nil
+	}
+	return m, nil
 }
 
 type keyHint struct{ Key, Label string }
