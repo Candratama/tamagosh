@@ -22,7 +22,10 @@ const (
 	ModeConfirmDelete
 	ModeSftp
 	ModeConnecting
+	ModeSplash
 )
+
+type SplashDoneMsg struct{}
 
 type startSshMsg struct {
 	conn config.Connection
@@ -52,7 +55,7 @@ type AppModel struct {
 
 func NewApp(store *config.Store, pass PassStore, bm *bookmark.Store, storePath string) AppModel {
 	return AppModel{
-		Mode:      ModeList,
+		Mode:      ModeSplash,
 		Store:     store,
 		StorePath: storePath,
 		Pass:      pass,
@@ -61,14 +64,31 @@ func NewApp(store *config.Store, pass PassStore, bm *bookmark.Store, storePath s
 	}
 }
 
-func (a AppModel) Init() tea.Cmd { return nil }
+func (a AppModel) Init() tea.Cmd {
+	return tea.Tick(2200*time.Millisecond, func(time.Time) tea.Msg {
+		return SplashDoneMsg{}
+	})
+}
 
 func (a AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		a.Width = ws.Width
 		a.Height = ws.Height
 	}
+	if a.Mode == ModeSplash {
+		switch msg.(type) {
+		case SplashDoneMsg:
+			a.Mode = ModeList
+			return a, nil
+		case tea.KeyMsg, tea.MouseMsg:
+			a.Mode = ModeList
+			return a, nil
+		}
+		return a, nil
+	}
 	switch m := msg.(type) {
+	case SplashDoneMsg:
+		return a, nil
 	case NewFormMsg:
 		a.Form = NewFormModel(config.Connection{}, false)
 		a.Mode = ModeForm
@@ -246,6 +266,16 @@ func (a AppModel) handleSftp(c config.Connection) (tea.Model, tea.Cmd) {
 
 func (a AppModel) View() string {
 	switch a.Mode {
+	case ModeSplash:
+		w := a.Width
+		h := a.Height
+		if w == 0 {
+			w = 80
+		}
+		if h == 0 {
+			h = 24
+		}
+		return renderSplash(w, h)
 	case ModeForm:
 		return a.Form.View()
 	case ModeSftp:

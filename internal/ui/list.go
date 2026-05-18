@@ -129,7 +129,7 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m ListModel) View() string {
 	var b strings.Builder
-	b.WriteString(StyleTitle.Render("SSHM"))
+	b.WriteString(StyleTitle.Render("TAMAGOSH"))
 	b.WriteString("\n\n")
 	visible := m.Visible()
 	if len(visible) == 0 {

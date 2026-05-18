@@ -238,7 +238,7 @@ func (m SftpModel) activeFilter() string {
 func (m SftpModel) Init() tea.Cmd { return nil }
 
 func (m SftpModel) paneBodyHeight() int {
-	h := m.Height - 8
+	h := m.Height - 6
 	if h < 3 {
 		h = 3
 	}
@@ -852,16 +852,6 @@ func (m SftpModel) View() string {
 	if paneW < 24 {
 		paneW = 24
 	}
-	paneH := m.Height - 4
-	if paneH < 6 {
-		paneH = 6
-	}
-
-	leftTitle := "Local: " + truncate(m.LocalDir, paneW-10)
-	rightTitle := "Remote: " + truncate(m.RemoteDir, paneW-11)
-	left := m.renderPane(leftTitle, m.visible(PaneLocal), m.LocalCursor, m.LocalScroll, m.LocalSelected, m.LocalFilter, m.Active == PaneLocal, paneW, paneH)
-	right := m.renderPane(rightTitle, m.visible(PaneRemote), m.RemoteCursor, m.RemoteScroll, m.RemoteSelected, m.RemoteFilter, m.Active == PaneRemote, paneW, paneH)
-	joined := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	hints := colorHints(shortKeys)
 	if m.Filtering {
@@ -880,9 +870,6 @@ func (m SftpModel) View() string {
 	}
 
 	help := hints
-	if detail != "" {
-		help = detail + "\n" + help
-	}
 	if m.TransferActive && m.Transfer != nil {
 		done := m.Transfer.BytesDone.Load()
 		total := m.Transfer.BytesTotal
@@ -920,17 +907,15 @@ func (m SftpModel) View() string {
 	bottomRows = append(bottomRows, help)
 
 	contentH := m.Height - len(bottomRows)
-	if contentH < 1 {
-		contentH = 1
+	if contentH < 6 {
+		contentH = 6
 	}
-	contentLines := strings.Split(joined, "\n")
-	for len(contentLines) < contentH {
-		contentLines = append(contentLines, strings.Repeat(" ", m.Width))
-	}
-	if len(contentLines) > contentH {
-		contentLines = contentLines[:contentH]
-	}
-	content := strings.Join(contentLines, "\n")
+
+	leftTitle := "Local: " + truncate(m.LocalDir, paneW-10)
+	rightTitle := "Remote: " + truncate(m.RemoteDir, paneW-11)
+	left := m.renderPane(leftTitle, m.visible(PaneLocal), m.LocalCursor, m.LocalScroll, m.LocalSelected, m.LocalFilter, m.Active == PaneLocal, paneW, contentH)
+	right := m.renderPane(rightTitle, m.visible(PaneRemote), m.RemoteCursor, m.RemoteScroll, m.RemoteSelected, m.RemoteFilter, m.Active == PaneRemote, paneW, contentH)
+	content := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	var overlay string
 	switch {

@@ -83,7 +83,7 @@ func TestDefaultPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultPath: %v", err)
 	}
-	want := "/tmp/fakehome/.config/sshm/connections.json"
+	want := "/tmp/fakehome/.config/tamagosh/connections.json"
 	if p != want {
 		t.Fatalf("got %q want %q", p, want)
 	}

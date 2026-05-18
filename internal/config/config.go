@@ -90,5 +90,12 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "sshm", "connections.json"), nil
+	newDir := filepath.Join(home, ".config", "tamagosh")
+	oldDir := filepath.Join(home, ".config", "sshm")
+	if _, err := os.Stat(newDir); os.IsNotExist(err) {
+		if _, err := os.Stat(oldDir); err == nil {
+			_ = os.Rename(oldDir, newDir)
+		}
+	}
+	return filepath.Join(newDir, "connections.json"), nil
 }
