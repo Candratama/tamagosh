@@ -7,7 +7,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/candratama/sshm/internal/bookmark"
 	"github.com/candratama/sshm/internal/config"
@@ -274,6 +273,6 @@ func (a AppModel) View() string {
 		if h == 0 {
 			h = 24
 		}
-		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, view)
+		return overlayOnBackground(view, w, h)
 	}
 }
