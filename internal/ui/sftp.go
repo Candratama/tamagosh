@@ -32,7 +32,11 @@ type SftpModel struct {
 	RemoteEntries []sftppkg.Entry
 	LocalCursor   int
 	RemoteCursor  int
+	LocalScroll   int
+	RemoteScroll  int
 	Active        Pane
+	Width         int
+	Height        int
 	Err           string
 }
 
@@ -42,6 +46,8 @@ func NewSftpModel(client *sftppkg.Client, localDir, remoteDir string) SftpModel 
 		LocalDir:  localDir,
 		RemoteDir: remoteDir,
 		Active:    PaneLocal,
+		Width:     80,
+		Height:    24,
 	}
 	m.refreshLocal()
 	m.refreshRemote()
@@ -74,6 +80,7 @@ func (m *SftpModel) refreshLocal() {
 	if m.LocalCursor >= len(entries) {
 		m.LocalCursor = 0
 	}
+	m.LocalScroll = 0
 }
 
 func (m *SftpModel) refreshRemote() {
@@ -96,12 +103,46 @@ func (m *SftpModel) refreshRemote() {
 	if m.RemoteCursor >= len(entries) {
 		m.RemoteCursor = 0
 	}
+	m.RemoteScroll = 0
 }
 
 func (m SftpModel) Init() tea.Cmd { return nil }
 
+func (m SftpModel) paneBodyHeight() int {
+	h := m.Height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+func (m *SftpModel) clampScroll() {
+	body := m.paneBodyHeight()
+	if m.LocalCursor < m.LocalScroll {
+		m.LocalScroll = m.LocalCursor
+	} else if m.LocalCursor >= m.LocalScroll+body {
+		m.LocalScroll = m.LocalCursor - body + 1
+	}
+	if m.LocalScroll < 0 {
+		m.LocalScroll = 0
+	}
+	if m.RemoteCursor < m.RemoteScroll {
+		m.RemoteScroll = m.RemoteCursor
+	} else if m.RemoteCursor >= m.RemoteScroll+body {
+		m.RemoteScroll = m.RemoteCursor - body + 1
+	}
+	if m.RemoteScroll < 0 {
+		m.RemoteScroll = 0
+	}
+}
+
 func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
+		m.clampScroll()
+		return m, nil
 	case SftpRefreshMsg:
 		m.refreshLocal()
 		m.refreshRemote()
@@ -120,16 +161,76 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.Active == PaneRemote && m.RemoteCursor > 0 {
 				m.RemoteCursor--
 			}
+			m.clampScroll()
 		case tea.KeyDown:
 			if m.Active == PaneLocal && m.LocalCursor < len(m.LocalEntries)-1 {
 				m.LocalCursor++
 			} else if m.Active == PaneRemote && m.RemoteCursor < len(m.RemoteEntries)-1 {
 				m.RemoteCursor++
 			}
+			m.clampScroll()
+		case tea.KeyPgUp:
+			body := m.paneBodyHeight()
+			if m.Active == PaneLocal {
+				m.LocalCursor -= body
+				if m.LocalCursor < 0 {
+					m.LocalCursor = 0
+				}
+			} else {
+				m.RemoteCursor -= body
+				if m.RemoteCursor < 0 {
+					m.RemoteCursor = 0
+				}
+			}
+			m.clampScroll()
+		case tea.KeyPgDown:
+			body := m.paneBodyHeight()
+			if m.Active == PaneLocal {
+				m.LocalCursor += body
+				if m.LocalCursor > len(m.LocalEntries)-1 {
+					m.LocalCursor = len(m.LocalEntries) - 1
+				}
+				if m.LocalCursor < 0 {
+					m.LocalCursor = 0
+				}
+			} else {
+				m.RemoteCursor += body
+				if m.RemoteCursor > len(m.RemoteEntries)-1 {
+					m.RemoteCursor = len(m.RemoteEntries) - 1
+				}
+				if m.RemoteCursor < 0 {
+					m.RemoteCursor = 0
+				}
+			}
+			m.clampScroll()
+		case tea.KeyHome:
+			if m.Active == PaneLocal {
+				m.LocalCursor = 0
+			} else {
+				m.RemoteCursor = 0
+			}
+			m.clampScroll()
+		case tea.KeyEnd:
+			if m.Active == PaneLocal {
+				m.LocalCursor = len(m.LocalEntries) - 1
+			} else {
+				m.RemoteCursor = len(m.RemoteEntries) - 1
+			}
+			if m.LocalCursor < 0 {
+				m.LocalCursor = 0
+			}
+			if m.RemoteCursor < 0 {
+				m.RemoteCursor = 0
+			}
+			m.clampScroll()
 		case tea.KeyEnter:
-			return m, m.descend()
+			cmd := m.descend()
+			m.clampScroll()
+			return m, cmd
 		case tea.KeyBackspace:
-			return m, m.ascend()
+			cmd := m.ascend()
+			m.clampScroll()
+			return m, cmd
 		case tea.KeyRunes:
 			switch string(msg.Runes) {
 			case "q":
@@ -235,13 +336,7 @@ func (m *SftpModel) delete() tea.Cmd {
 		}
 		e := m.LocalEntries[m.LocalCursor]
 		target := filepath.Join(m.LocalDir, e.Name)
-		var err error
-		if e.IsDir {
-			err = os.Remove(target)
-		} else {
-			err = os.Remove(target)
-		}
-		if err != nil {
+		if err := os.Remove(target); err != nil {
 			m.Err = err.Error()
 			return nil
 		}
@@ -263,40 +358,73 @@ func (m *SftpModel) delete() tea.Cmd {
 }
 
 func (m SftpModel) View() string {
-	left := renderPane("Local: "+m.LocalDir, m.LocalEntries, m.LocalCursor, m.Active == PaneLocal)
-	right := renderPane("Remote: "+m.RemoteDir, m.RemoteEntries, m.RemoteCursor, m.Active == PaneRemote)
+	paneW := (m.Width - 2) / 2
+	if paneW < 20 {
+		paneW = 20
+	}
+	body := m.paneBodyHeight()
+	left := m.renderPane("Local: "+truncate(m.LocalDir, paneW-10), m.LocalEntries, m.LocalCursor, m.LocalScroll, m.Active == PaneLocal, paneW, body)
+	right := m.renderPane("Remote: "+truncate(m.RemoteDir, paneW-10), m.RemoteEntries, m.RemoteCursor, m.RemoteScroll, m.Active == PaneRemote, paneW, body)
 	joined := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
-	help := StyleHelp.Render("[Tab] switch  [Enter] open  [Bksp] up  [c] copy  [d] del  [r] refresh  [q] back")
+	help := StyleHelp.Render("[Tab] switch  [Enter] open  [Bksp] up  [c] copy  [d] del  [r] refresh  [PgUp/PgDn] page  [q] back")
 	if m.Err != "" {
 		help = StyleError.Render(m.Err) + "\n" + help
 	}
 	return joined + "\n" + help
 }
 
-func renderPane(title string, entries []sftppkg.Entry, cursor int, active bool) string {
+func (m SftpModel) renderPane(title string, entries []sftppkg.Entry, cursor, scroll int, active bool, width, body int) string {
 	var b strings.Builder
 	b.WriteString(StyleTitle.Render(title))
-	b.WriteString("\n\n")
-	for i, e := range entries {
-		name := e.Name
-		if e.IsDir {
-			name += "/"
-		}
-		line := fmt.Sprintf("  %s", name)
-		if i == cursor {
-			line = StyleSelected.Render("> " + name)
-		} else {
-			line = StyleNormal.Render(line)
-		}
-		b.WriteString(line)
-		b.WriteString("\n")
-	}
+	b.WriteString("\n")
 	if len(entries) == 0 {
 		b.WriteString(StyleHelp.Render("  (empty)"))
 		b.WriteString("\n")
+	} else {
+		end := scroll + body
+		if end > len(entries) {
+			end = len(entries)
+		}
+		nameW := width - 6
+		if nameW < 8 {
+			nameW = 8
+		}
+		for i := scroll; i < end; i++ {
+			e := entries[i]
+			name := e.Name
+			if e.IsDir {
+				name += "/"
+			}
+			name = truncate(name, nameW)
+			line := fmt.Sprintf("  %s", name)
+			if i == cursor {
+				line = StyleSelected.Render("> " + name)
+			} else {
+				line = StyleNormal.Render(line)
+			}
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+		if len(entries) > body {
+			b.WriteString(StyleHelp.Render(fmt.Sprintf("  [%d/%d]", cursor+1, len(entries))))
+		}
 	}
+	style := StylePaneInactive
 	if active {
-		return StylePaneActive.Width(40).Render(b.String())
+		style = StylePaneActive
 	}
-	return StylePaneInactive.Width(40).Render(b.String())
+	return style.Width(width).Height(body + 2).Render(b.String())
+}
+
+func truncate(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	if len(s) <= n {
+		return s
+	}
+	if n <= 3 {
+		return s[:n]
+	}
+	return "..." + s[len(s)-(n-3):]
 }

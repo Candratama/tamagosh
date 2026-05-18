@@ -36,6 +36,8 @@ type AppModel struct {
 	Form      FormModel
 	Sftp      SftpModel
 	Pending   config.Connection
+	Width     int
+	Height    int
 	Err       string
 }
 
@@ -52,6 +54,10 @@ func NewApp(store *config.Store, pass PassStore, storePath string) AppModel {
 func (a AppModel) Init() tea.Cmd { return nil }
 
 func (a AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		a.Width = ws.Width
+		a.Height = ws.Height
+	}
 	switch m := msg.(type) {
 	case NewFormMsg:
 		a.Form = NewFormModel(config.Connection{}, false)
@@ -213,6 +219,10 @@ func (a AppModel) handleSftp(c config.Connection) (tea.Model, tea.Cmd) {
 		localHome, _ = filepath.Abs(".")
 	}
 	a.Sftp = NewSftpModel(client, localHome, remoteHome)
+	if a.Width > 0 && a.Height > 0 {
+		a.Sftp.Width = a.Width
+		a.Sftp.Height = a.Height
+	}
 	a.Mode = ModeSftp
 	return a, nil
 }
