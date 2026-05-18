@@ -236,7 +236,16 @@ func (m SftpModel) visible(pane Pane) []sftppkg.Entry {
 		all = m.RemoteEntries
 		filter = m.RemoteFilter
 	}
-	out := make([]sftppkg.Entry, 0, len(all))
+	out := make([]sftppkg.Entry, 0, len(all)+1)
+	atRoot := false
+	if pane == PaneLocal {
+		atRoot = filepath.Dir(m.LocalDir) == m.LocalDir
+	} else {
+		atRoot = sftppkg.Parent(m.RemoteDir) == m.RemoteDir
+	}
+	if !atRoot && filter == "" {
+		out = append(out, sftppkg.Entry{Name: "..", IsDir: true})
+	}
 	q := strings.ToLower(filter)
 	for _, e := range all {
 		if !m.ShowHidden && strings.HasPrefix(e.Name, ".") {
@@ -729,6 +738,10 @@ func (m *SftpModel) descend() {
 			return
 		}
 		e := vis[m.LocalCursor]
+		if e.Name == ".." {
+			m.ascend()
+			return
+		}
 		if !e.IsDir {
 			return
 		}
@@ -738,6 +751,10 @@ func (m *SftpModel) descend() {
 			return
 		}
 		e := vis[m.RemoteCursor]
+		if e.Name == ".." {
+			m.ascend()
+			return
+		}
 		if !e.IsDir {
 			return
 		}
@@ -797,6 +814,9 @@ func (m *SftpModel) gatherTargets(filesOnly bool) []sftppkg.Entry {
 		return nil
 	}
 	e := vis[cursor]
+	if e.Name == ".." {
+		return nil
+	}
 	if filesOnly && e.IsDir {
 		return nil
 	}
