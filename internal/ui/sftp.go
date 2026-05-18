@@ -1911,7 +1911,9 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 	}
 
 	client := m.Client
-	cmd := exec.Command(editor, localPath)
+	// sh -c "clear; exec $0 $1" → clear main screen before editor renders,
+	// preventing scrollback flash between alt-screen exit and editor startup
+	cmd := exec.Command("sh", "-c", `clear; exec "$0" "$1"`, editor, localPath)
 	savedPath := localPath
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
