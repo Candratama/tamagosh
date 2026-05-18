@@ -120,7 +120,7 @@ func overlayOnBackground(view string, width, height int) string {
 func renderHeader() string {
 	text := lipgloss.NewStyle().Foreground(lipgloss.Color(gbGreen)).Bold(true).Render(splashText)
 	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(gbOrange)).Render(splashArtSmall)
-	return lipgloss.JoinVertical(lipgloss.Center, icon, "", "", "", text)
+	return lipgloss.JoinVertical(lipgloss.Center, icon, "", "", text)
 }
 
 func renderSplash(width, height int) string {
