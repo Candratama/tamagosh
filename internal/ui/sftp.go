@@ -1735,7 +1735,16 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 		editor = os.Getenv("EDITOR")
 	}
 	if editor == "" {
-		editor = "vi"
+		for _, candidate := range []string{"nvim", "vim", "vi"} {
+			if _, err := exec.LookPath(candidate); err == nil {
+				editor = candidate
+				break
+			}
+		}
+	}
+	if editor == "" {
+		m.Err = "no editor found (set $EDITOR or install nvim)"
+		return nil
 	}
 
 	pane := m.Active
