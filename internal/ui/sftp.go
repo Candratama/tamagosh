@@ -1918,9 +1918,26 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 		beforeMTime = info.ModTime()
 		beforeSize = info.Size()
 	}
-	// sh -c "clear; exec $0 $1" → clear main screen before editor renders,
-	// preventing scrollback flash between alt-screen exit and editor startup
-	cmd := exec.Command("sh", "-c", `clear; exec "$0" "$1"`, editor, localPath)
+	// Bridge the alt-screen exit: dump the current SFTP frame to main buffer
+	// so user sees the pane briefly instead of scrollback during the transition.
+	frame := m.View()
+	if cleanup == "" {
+		// local file: no tmp dir created above; make one just for the frame snapshot
+		td, terr := os.MkdirTemp("", "tamagosh-frame-*")
+		if terr == nil {
+			cleanup = td
+		}
+	}
+	framePath := ""
+	if cleanup != "" {
+		framePath = filepath.Join(cleanup, "frame.txt")
+		_ = os.WriteFile(framePath, []byte(frame), 0o600)
+	}
+	// 3J clears scrollback, 2J clears visible, H homes cursor → blank main buffer.
+	// Then cat the snapshot so the SFTP pane appears, brief sleep, clear again,
+	// then exec the editor.
+	wrapper := `printf '\033[3J\033[2J\033[H'; [ -n "$2" ] && cat "$2"; sleep 0.18; printf '\033[3J\033[2J\033[H'; exec "$0" "$1"`
+	cmd := exec.Command("sh", "-c", wrapper, editor, localPath, framePath)
 	savedPath := localPath
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
