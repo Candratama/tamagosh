@@ -1499,8 +1499,21 @@ func (m SftpModel) renderPane(title string, entries []sftppkg.Entry, cursor, scr
 		body = 1
 	}
 
+	titleBg := gbBorder
+	titleFg := gbFgMute
+	if active {
+		titleBg = gbBgSel
+		titleFg = gbYellow
+	}
+	titleStyle := lipgloss.NewStyle().
+		Width(width-2).
+		Align(lipgloss.Center).
+		Background(lipgloss.Color(titleBg)).
+		Foreground(lipgloss.Color(titleFg)).
+		Bold(true)
+
 	var b strings.Builder
-	b.WriteString(StyleTitle.Render(title))
+	b.WriteString(titleStyle.Render(title))
 	b.WriteString("\n")
 
 	nameW := width - 8
