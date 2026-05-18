@@ -73,6 +73,7 @@ type SftpModel struct {
 	SortMode       int
 	SortAsc        bool
 	ShowInfo       bool
+	ShowHelp       bool
 	InfoEntry      sftppkg.Entry
 	Bookmark       *bookmark.Store
 	BookmarkScope  string
@@ -353,6 +354,10 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ShowInfo = false
 			return m, nil
 		}
+		if m.ShowHelp {
+			m.ShowHelp = false
+			return m, nil
+		}
 		if len(m.BookmarkList) > 0 {
 			return m.handleBookmarkKey(msg)
 		}
@@ -545,6 +550,8 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.BookmarkList = m.Bookmark.List(m.currentScope())
 					m.BookmarkCursor = 0
 				}
+			case "h", "?":
+				m.ShowHelp = true
 			case ".":
 				m.ShowHidden = !m.ShowHidden
 				m.LocalCursor = 0
@@ -850,19 +857,9 @@ func (m SftpModel) View() string {
 	right := m.renderPane(rightTitle, m.visible(PaneRemote), m.RemoteCursor, m.RemoteScroll, m.RemoteSelected, m.RemoteFilter, m.Active == PaneRemote, paneW, paneH)
 	joined := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
-	hints := "[Tab] [→]open [←]back [Bksp]parent [Space]select [c]copy [d]del [R]rename [m]kdir [g]oto [s/S]sort [i]nfo [b]ookmark ['] list [/]find [.]hidden [a/A] all/clr [r]efresh [q]back"
+	hints := colorHints(shortKeys)
 	if m.Filtering {
 		hints = fmt.Sprintf("filter (%s): %s_  [Enter] apply  [Esc] cancel", paneLabel(m.Active), m.activeFilter())
-	}
-	if m.PromptAction != "" {
-		hints = fmt.Sprintf("%s: %s_  [Enter] confirm  [Esc] cancel", m.PromptAction, m.PromptInput)
-	}
-	if m.ConfirmAction != "" {
-		verb := m.ConfirmAction
-		hints = StyleSelected.Render(fmt.Sprintf(" %s %d item(s)? [y/N] ", verb, len(m.ConfirmTargets)))
-	}
-	if len(m.BookmarkList) > 0 {
-		hints = fmt.Sprintf("bookmarks (%d/%d) [↑↓] move  [Enter] jump  [d] del  [Esc] close", m.BookmarkCursor+1, len(m.BookmarkList))
 	}
 	var detail string
 	visAct := m.visible(m.Active)
@@ -876,12 +873,7 @@ func (m SftpModel) View() string {
 		detail = StyleHelp.Render(paneLabel(m.Active) + " ▸ " + truncate(entryDetail(visAct[curIdx]), m.Width-4))
 	}
 
-	var help string
-	if m.ConfirmAction != "" {
-		help = hints
-	} else {
-		help = StyleHelp.Render(hints)
-	}
+	help := hints
 	if detail != "" {
 		help = detail + "\n" + help
 	}
@@ -919,18 +911,172 @@ func (m SftpModel) View() string {
 
 	var overlay string
 	switch {
+	case m.ShowHelp:
+		overlay = renderHelpBox(min(m.Width-4, 78))
 	case m.ShowInfo:
-		overlay = renderInfoBox(m.InfoEntry, m.Active, m.LocalDir, m.RemoteDir, boxW)
+		overlay = renderInfoBox(m.InfoEntry, m.Active, m.LocalDir, m.RemoteDir, min(boxW, 70))
 	case len(m.BookmarkList) > 0:
-		overlay = renderBookmarkBox(m.BookmarkList, m.BookmarkCursor, boxW)
+		overlay = renderBookmarkBox(m.BookmarkList, m.BookmarkCursor, min(boxW, 70))
 	case m.PromptAction != "":
-		overlay = renderPromptBox(m.PromptAction, m.PromptInput, boxW)
+		overlay = renderPromptBox(m.PromptAction, m.PromptInput, min(boxW, 60))
+	case m.ConfirmAction != "":
+		overlay = renderConfirmBox(m.ConfirmAction, m.ConfirmTargets, min(boxW, 60))
 	}
 
 	if overlay != "" {
-		return overlayBottom(base, overlay)
+		return overlayCenter(base, overlay, m.Width, m.Height)
 	}
 	return base
+}
+
+type keyHint struct{ Key, Label string }
+
+var shortKeys = []keyHint{
+	{"Tab", "switch"}, {"→", "open"}, {"←", "back"}, {"Bksp", "parent"},
+	{"Space", "select"}, {"c", "copy"}, {"d", "del"}, {"R", "rename"},
+	{"m", "kdir"}, {"g", "oto"}, {"s/S", "sort"}, {"i", "nfo"},
+	{"b", "save"}, {"'", "list"}, {"/", "find"}, {".", "hidden"},
+	{"a/A", "all/clr"}, {"r", "refresh"}, {"h", "elp"}, {"q", "back"},
+}
+
+func colorHints(keys []keyHint) string {
+	var b strings.Builder
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		b.WriteString(StyleKeyBracket.Render("["))
+		b.WriteString(StyleKey.Render(k.Key))
+		b.WriteString(StyleKeyBracket.Render("]"))
+		b.WriteString(StyleKeyLabel.Render(k.Label))
+	}
+	return b.String()
+}
+
+func renderHelpBox(width int) string {
+	groups := []struct {
+		title string
+		keys  []keyHint
+	}{
+		{"Navigation", []keyHint{
+			{"Tab", "switch active pane"},
+			{"↑/↓", "move cursor"},
+			{"→/Enter", "open folder"},
+			{"←", "back to previous folder"},
+			{"Bksp", "parent folder"},
+			{"PgUp/PgDn", "page up/down"},
+			{"Home/End", "first/last item"},
+			{"g", "goto path (prompt)"},
+			{"'", "open bookmark list"},
+		}},
+		{"Selection", []keyHint{
+			{"Space", "toggle select on file"},
+			{"a", "select all files in pane"},
+			{"A", "clear selection"},
+		}},
+		{"File operations", []keyHint{
+			{"c", "copy (cursor or selected)"},
+			{"d", "delete (with confirm)"},
+			{"R", "rename cursor item"},
+			{"m", "make new directory"},
+			{"b", "bookmark current dir"},
+		}},
+		{"View", []keyHint{
+			{"s", "cycle sort: name/size/mtime"},
+			{"S", "toggle sort direction"},
+			{"/", "search/filter pane"},
+			{".", "toggle hidden files"},
+			{"i", "show file info"},
+			{"r", "refresh both panes"},
+		}},
+		{"System", []keyHint{
+			{"h or ?", "this help"},
+			{"q", "back to connection list"},
+		}},
+	}
+
+	var b strings.Builder
+	b.WriteString(StyleTitle.Render("Keyboard shortcuts"))
+	b.WriteString("\n")
+	for _, g := range groups {
+		b.WriteString("\n")
+		b.WriteString(StyleSection.Render("  " + g.title))
+		b.WriteString("\n")
+		for _, k := range g.keys {
+			line := "  " +
+				StyleKeyBracket.Render("[") +
+				StyleKey.Render(k.Key) +
+				StyleKeyBracket.Render("] ") +
+				StyleKeyLabel.Render(k.Label)
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+	}
+	b.WriteString("\n")
+	b.WriteString(StyleHelp.Render("  press any key to close"))
+	return StylePaneActive.Width(width).Render(b.String())
+}
+
+func renderConfirmBox(action string, targets []sftppkg.Entry, width int) string {
+	var b strings.Builder
+	title := action
+	if len(title) > 0 {
+		title = strings.ToUpper(title[:1]) + title[1:]
+	}
+	b.WriteString(StyleTitle.Render(title + " confirmation"))
+	b.WriteString("\n\n")
+	b.WriteString(StyleNormal.Render(fmt.Sprintf("  %s %d item(s)?", action, len(targets))))
+	b.WriteString("\n\n")
+	maxList := 6
+	for i, e := range targets {
+		if i >= maxList {
+			b.WriteString(StyleHelp.Render(fmt.Sprintf("  ... +%d more", len(targets)-maxList)))
+			b.WriteString("\n")
+			break
+		}
+		name := e.Name
+		if e.IsDir {
+			name += "/"
+		}
+		b.WriteString(StyleNormal.Render("  - " + truncate(name, width-8)))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(StyleKeyBracket.Render("  ["))
+	b.WriteString(StyleError.Render("y"))
+	b.WriteString(StyleKeyBracket.Render("] "))
+	b.WriteString(StyleKeyLabel.Render("yes  "))
+	b.WriteString(StyleKeyBracket.Render("["))
+	b.WriteString(StyleKey.Render("N"))
+	b.WriteString(StyleKeyBracket.Render("/"))
+	b.WriteString(StyleKey.Render("Esc"))
+	b.WriteString(StyleKeyBracket.Render("] "))
+	b.WriteString(StyleKeyLabel.Render("cancel"))
+	return StyleConfirm.Width(width).Render(b.String())
+}
+
+func overlayCenter(base, box string, width, height int) string {
+	baseLines := strings.Split(base, "\n")
+	boxLines := strings.Split(box, "\n")
+	for len(baseLines) < height {
+		baseLines = append(baseLines, "")
+	}
+	bl := len(baseLines)
+	btl := len(boxLines)
+	startRow := (bl - btl) / 2
+	if startRow < 0 {
+		startRow = 0
+	}
+	for i := 0; i < btl && startRow+i < bl; i++ {
+		boxLine := boxLines[i]
+		bw := lipgloss.Width(boxLine)
+		left := (width - bw) / 2
+		if left < 0 {
+			left = 0
+		}
+		baseLines[startRow+i] = strings.Repeat(" ", left) + boxLine
+	}
+	return strings.Join(baseLines, "\n")
 }
 
 func overlayBottom(base, box string) string {
@@ -955,7 +1101,7 @@ func renderInfoBox(e sftppkg.Entry, pane Pane, localDir, remoteDir string, width
 	}
 	mt := "-"
 	if !e.ModTime.IsZero() {
-		mt = e.ModTime.Local().Format("2026-01-02 15:04:05")
+		mt = e.ModTime.Local().Format("2006-01-02 15:04:05")
 	}
 	dir := localDir
 	if pane == PaneRemote {
@@ -1335,7 +1481,7 @@ func entryDetail(e sftppkg.Entry) string {
 	}
 	mt := "-"
 	if !e.ModTime.IsZero() {
-		mt = e.ModTime.Local().Format("2026-01-02 15:04")
+		mt = e.ModTime.Local().Format("2006-01-02 15:04")
 	}
 	if e.IsDir {
 		return fmt.Sprintf("%s  %s  %s", kind, mt, e.Name)

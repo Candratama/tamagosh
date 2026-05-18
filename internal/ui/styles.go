@@ -37,4 +37,23 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.Color("240")).
 				Padding(0, 1)
+
+	StyleKey = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51")).
+			Bold(true)
+
+	StyleKeyBracket = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244"))
+
+	StyleKeyLabel = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252"))
+
+	StyleSection = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("213")).
+			Bold(true)
+
+	StyleConfirm = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("196")).
+			Padding(0, 1)
 )
