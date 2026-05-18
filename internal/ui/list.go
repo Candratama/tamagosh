@@ -57,6 +57,19 @@ func (m ListModel) Selected() config.Connection {
 }
 
 func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if mm, ok := msg.(tea.MouseMsg); ok {
+		switch mm.Button {
+		case tea.MouseButtonWheelUp:
+			if m.Cursor > 0 {
+				m.Cursor--
+			}
+		case tea.MouseButtonWheelDown:
+			if m.Cursor < len(m.Visible())-1 {
+				m.Cursor++
+			}
+		}
+		return m, nil
+	}
 	k, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
