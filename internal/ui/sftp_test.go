@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/candratama/sshm/internal/sftp"
+	"github.com/Candratama/tamagosh/internal/sftp"
 )
 
 func TestSftpTabSwitchesPane(t *testing.T) {

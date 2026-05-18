@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/candratama/sshm/internal/config"
+	"github.com/Candratama/tamagosh/internal/config"
 )
 
 func BuildCommand(c config.Connection, password string) (string, []string) {

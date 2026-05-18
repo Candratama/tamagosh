@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/candratama/sshm/internal/config"
+	"github.com/Candratama/tamagosh/internal/config"
 )
 
 type Entry struct {

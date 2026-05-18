@@ -3,7 +3,7 @@ package ssh
 import (
 	"testing"
 
-	"github.com/candratama/sshm/internal/config"
+	"github.com/Candratama/tamagosh/internal/config"
 )
 
 func TestBuildCommand(t *testing.T) {

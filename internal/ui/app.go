@@ -10,10 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/candratama/sshm/internal/bookmark"
-	"github.com/candratama/sshm/internal/config"
-	sftppkg "github.com/candratama/sshm/internal/sftp"
-	"github.com/candratama/sshm/internal/ssh"
+	"github.com/Candratama/tamagosh/internal/bookmark"
+	"github.com/Candratama/tamagosh/internal/config"
+	sftppkg "github.com/Candratama/tamagosh/internal/sftp"
+	"github.com/Candratama/tamagosh/internal/ssh"
 )
 
 type Mode int

@@ -1,4 +1,4 @@
-module github.com/candratama/sshm
+module github.com/Candratama/tamagosh
 
 go 1.26.2
 

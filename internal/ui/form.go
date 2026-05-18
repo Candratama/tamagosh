@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/candratama/sshm/internal/config"
+	"github.com/Candratama/tamagosh/internal/config"
 )
 
 const (

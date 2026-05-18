@@ -8,10 +8,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/candratama/sshm/internal/bookmark"
-	"github.com/candratama/sshm/internal/config"
-	"github.com/candratama/sshm/internal/secret"
-	"github.com/candratama/sshm/internal/ui"
+	"github.com/Candratama/tamagosh/internal/bookmark"
+	"github.com/Candratama/tamagosh/internal/config"
+	"github.com/Candratama/tamagosh/internal/secret"
+	"github.com/Candratama/tamagosh/internal/ui"
 )
 
 func main() {

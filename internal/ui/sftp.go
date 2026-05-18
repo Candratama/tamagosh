@@ -16,8 +16,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/candratama/sshm/internal/bookmark"
-	sftppkg "github.com/candratama/sshm/internal/sftp"
+	"github.com/Candratama/tamagosh/internal/bookmark"
+	sftppkg "github.com/Candratama/tamagosh/internal/sftp"
 )
 
 type Pane int
