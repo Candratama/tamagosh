@@ -524,7 +524,7 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "q":
 				return m, func() tea.Msg { return SftpQuitMsg{} }
 			case "c":
-				targets := m.gatherTargets(true)
+				targets := m.gatherTargets(false)
 				if len(targets) == 0 {
 					return m, nil
 				}
