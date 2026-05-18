@@ -248,7 +248,7 @@ func (m SftpModel) activeFilter() string {
 func (m SftpModel) Init() tea.Cmd { return nil }
 
 func (m SftpModel) paneBodyHeight() int {
-	h := m.Height - 6
+	h := m.Height - 7
 	if h < 3 {
 		h = 3
 	}
@@ -379,7 +379,7 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.refreshRemote()
 		}
-		return m, nil
+		return m, tea.ClearScreen
 	case tea.KeyMsg:
 		if m.ShowInfo {
 			m.ShowInfo = false
@@ -1510,7 +1510,7 @@ func paneLabel(p Pane) string {
 
 func (m SftpModel) renderPane(title string, entries []sftppkg.Entry, cursor, scroll int, selected map[string]bool, filter string, active bool, width, height int) string {
 	innerH := height - 2
-	body := innerH - 2
+	body := innerH - 3
 	if body < 1 {
 		body = 1
 	}
@@ -1530,7 +1530,7 @@ func (m SftpModel) renderPane(title string, entries []sftppkg.Entry, cursor, scr
 
 	var b strings.Builder
 	b.WriteString(titleStyle.Render(title))
-	b.WriteString("\n")
+	b.WriteString("\n\n")
 
 	nameW := width - 8
 	if nameW < 8 {
@@ -1558,7 +1558,7 @@ func (m SftpModel) renderPane(title string, entries []sftppkg.Entry, cursor, scr
 			}
 			line := fmt.Sprintf(" %s %s", marker, name)
 			if i == cursor {
-				line = StyleSelected.Render(">" + marker + " " + name)
+				line = StyleSelected.Render("▸" + marker + " " + name)
 			} else if selected[e.Name] {
 				line = StyleError.Render(line)
 			} else {
