@@ -913,7 +913,24 @@ func (m SftpModel) View() string {
 		boxW = 30
 	}
 
-	base := joined + "\n" + help
+	bottomRows := []string{}
+	if detail != "" {
+		bottomRows = append(bottomRows, detail)
+	}
+	bottomRows = append(bottomRows, help)
+
+	contentH := m.Height - len(bottomRows)
+	if contentH < 1 {
+		contentH = 1
+	}
+	contentLines := strings.Split(joined, "\n")
+	for len(contentLines) < contentH {
+		contentLines = append(contentLines, strings.Repeat(" ", m.Width))
+	}
+	if len(contentLines) > contentH {
+		contentLines = contentLines[:contentH]
+	}
+	content := strings.Join(contentLines, "\n")
 
 	var overlay string
 	switch {
@@ -930,9 +947,9 @@ func (m SftpModel) View() string {
 	}
 
 	if overlay != "" {
-		return overlayCenter(base, overlay, m.Width, m.Height)
+		content = overlayCenter(content, overlay, m.Width, contentH)
 	}
-	return base
+	return content + "\n" + strings.Join(bottomRows, "\n")
 }
 
 func (m SftpModel) paneLayout() (paneW int) {
@@ -1210,12 +1227,15 @@ func overlayCenter(base, box string, width, height int) string {
 	}
 	bl := len(baseLines)
 	btl := len(boxLines)
-	// reserve bottom row for help; place overlay above it
-	startRow := (bl - btl - 1) / 2
+	if btl > bl {
+		btl = bl
+		boxLines = boxLines[:bl]
+	}
+	startRow := (bl - btl) / 2
 	if startRow < 0 {
 		startRow = 0
 	}
-	for i := 0; i < btl && startRow+i < bl-1; i++ {
+	for i := 0; i < btl && startRow+i < bl; i++ {
 		boxLine := boxLines[i]
 		bw := lipgloss.Width(boxLine)
 		col := (width - bw) / 2
