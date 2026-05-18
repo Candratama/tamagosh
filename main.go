@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -53,8 +54,35 @@ func main() {
 }
 
 func preflight() error {
+	const sshPath = "/usr/bin/ssh"
+	if _, err := os.Stat(sshPath); err != nil {
+		return fmt.Errorf("%s not found — install OpenSSH client", sshPath)
+	}
 	if _, err := exec.LookPath("sshpass"); err != nil {
-		return fmt.Errorf("sshpass not installed, run: brew install hudochenkov/sshpass/sshpass")
+		hint := "brew install hudochenkov/sshpass/sshpass  (macOS)"
+		switch runtime.GOOS {
+		case "linux":
+			hint = "apt-get install sshpass  /  pacman -S sshpass  /  dnf install sshpass"
+		}
+		return fmt.Errorf("sshpass not installed — %s", hint)
+	}
+
+	cfgPath, err := config.DefaultPath()
+	if err != nil {
+		return fmt.Errorf("home dir: %w", err)
+	}
+	cfgDir := filepath.Dir(cfgPath)
+	if err := os.MkdirAll(cfgDir, 0o700); err != nil {
+		return fmt.Errorf("cannot create config dir %s: %w", cfgDir, err)
+	}
+	probe := filepath.Join(cfgDir, ".write-probe")
+	if err := os.WriteFile(probe, []byte{}, 0o600); err != nil {
+		return fmt.Errorf("config dir %s not writable: %w", cfgDir, err)
+	}
+	_ = os.Remove(probe)
+
+	if os.Getenv("VISUAL") == "" && os.Getenv("EDITOR") == "" {
+		fmt.Fprintln(os.Stderr, "warning: $EDITOR and $VISUAL unset — `e` key will fall back to vi")
 	}
 	return nil
 }
