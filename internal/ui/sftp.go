@@ -1245,11 +1245,18 @@ func (m SftpModel) renderPane(title string, entries []sftppkg.Entry, cursor, scr
 		b.WriteString(StyleHelp.Render(truncate(footer, width-4)))
 	}
 
+	rendered := b.String()
+	currentLines := strings.Count(rendered, "\n") + 1
+	for currentLines < innerH {
+		rendered += "\n"
+		currentLines++
+	}
+
 	style := StylePaneInactive
 	if active {
 		style = StylePaneActive
 	}
-	return style.Width(width).Height(innerH).Render(b.String())
+	return style.Width(width).Height(innerH).Render(rendered)
 }
 
 func (m SftpModel) handleBookmarkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
