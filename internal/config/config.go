@@ -86,6 +86,12 @@ func (s *Store) Delete(name string) error {
 }
 
 func DefaultPath() (string, error) {
+	if h := os.Getenv("TAMAGOSH_HOME"); h != "" {
+		if err := os.MkdirAll(h, 0o700); err != nil {
+			return "", err
+		}
+		return filepath.Join(h, "connections.json"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

@@ -79,6 +79,7 @@ func TestDeleteConnection(t *testing.T) {
 
 func TestDefaultPath(t *testing.T) {
 	t.Setenv("HOME", "/tmp/fakehome")
+	t.Setenv("TAMAGOSH_HOME", "")
 	p, err := DefaultPath()
 	if err != nil {
 		t.Fatalf("DefaultPath: %v", err)

@@ -88,9 +88,21 @@ func preflight() error {
 				break
 			}
 		}
-		if found == "" {
-			fmt.Fprintln(os.Stderr, "warning: no editor found in PATH (install nvim/vim/nano) — `e` key will fail")
+		shell := filepath.Base(os.Getenv("SHELL"))
+		rc := "~/.bashrc"
+		switch shell {
+		case "zsh":
+			rc = "~/.zshrc"
+		case "fish":
+			rc = "~/.config/fish/config.fish (use: set -Ux EDITOR nvim)"
 		}
+		fmt.Fprintln(os.Stderr, "warning: $EDITOR not set")
+		if found != "" {
+			fmt.Fprintf(os.Stderr, "  → using fallback: %s\n", found)
+		} else {
+			fmt.Fprintln(os.Stderr, "  → no editor in PATH — `e` key will fail")
+		}
+		fmt.Fprintf(os.Stderr, "  → set in shell rc: echo 'export EDITOR=nvim' >> %s\n", rc)
 	}
 	return nil
 }
