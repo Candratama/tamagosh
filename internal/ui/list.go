@@ -130,9 +130,6 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m ListModel) View() string {
 	var b strings.Builder
-	logo := lipgloss.NewStyle().Foreground(lipgloss.Color(gbOrange)).Bold(true).Render(splashText)
-	b.WriteString(logo)
-	b.WriteString("\n\n")
 	visible := m.Visible()
 	if len(visible) == 0 {
 		b.WriteString(StyleHelp.Render("  (no connections — press 'n' to add)"))
@@ -158,5 +155,7 @@ func (m ListModel) View() string {
 		b.WriteString("\n")
 		b.WriteString(StyleError.Render("  " + m.Err))
 	}
-	return StyleBorder.Render(b.String())
+	box := StyleBorder.Render(b.String())
+	logo := lipgloss.NewStyle().Foreground(lipgloss.Color(gbOrange)).Bold(true).Render(splashText)
+	return lipgloss.JoinVertical(lipgloss.Center, logo, "", box)
 }

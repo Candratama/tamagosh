@@ -28,8 +28,10 @@ const splashArt = `                                ÆÆÆÆÆÆÆ
            ÆÆÆÆÆ        ÆÆÆÆÆÆÆÆ       ÆÆÆÆÆÆÆÆ        ÆÆÆÆÆ
            ÆÆÆÆ           ÆÆÆÆ           ÆÆÆÆ           ÆÆÆÆ`
 
-const splashText = `▀█▀ ▄▀█ █▀▄▀█ ▄▀█ █▀▀ █▀█ █▀ █░█
-░█░ █▀█ █░▀░█ █▀█ █▄█ █▄█ ▄█ █▀█`
+const splashText = ` _____  _    __  __    _     ___    ___   ___  _  _
+|_   _|/_\  |  \/  |  /_\   / __|  / _ \ / __|| || |
+  | | / _ \ | |\/| | / _ \ | (_ | | (_) |\__ \| __ |
+  |_|/_/ \_\|_|  |_|/_/ \_\ \___|  \___/ |___/|_||_|`
 
 func renderSplash(width, height int) string {
 	logoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(gbYellow)).Bold(true)
