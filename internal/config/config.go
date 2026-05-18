@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -47,4 +48,47 @@ func Save(path string, s *Store) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0o600)
+}
+
+func (s *Store) Find(name string) (Connection, int, bool) {
+	for i, c := range s.Connections {
+		if c.Name == name {
+			return c, i, true
+		}
+	}
+	return Connection{}, -1, false
+}
+
+func (s *Store) Add(c Connection) error {
+	if _, _, ok := s.Find(c.Name); ok {
+		return fmt.Errorf("connection %q already exists", c.Name)
+	}
+	s.Connections = append(s.Connections, c)
+	return nil
+}
+
+func (s *Store) Update(name string, c Connection) error {
+	_, idx, ok := s.Find(name)
+	if !ok {
+		return fmt.Errorf("connection %q not found", name)
+	}
+	s.Connections[idx] = c
+	return nil
+}
+
+func (s *Store) Delete(name string) error {
+	_, idx, ok := s.Find(name)
+	if !ok {
+		return fmt.Errorf("connection %q not found", name)
+	}
+	s.Connections = append(s.Connections[:idx], s.Connections[idx+1:]...)
+	return nil
+}
+
+func DefaultPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".config", "sshm", "connections.json"), nil
 }
