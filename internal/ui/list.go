@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/candratama/sshm/internal/config"
 )
@@ -129,7 +130,8 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m ListModel) View() string {
 	var b strings.Builder
-	b.WriteString(StyleTitle.Render("TAMAGOSH"))
+	logo := lipgloss.NewStyle().Foreground(lipgloss.Color(gbOrange)).Bold(true).Render(splashText)
+	b.WriteString(logo)
 	b.WriteString("\n\n")
 	visible := m.Visible()
 	if len(visible) == 0 {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/candratama/sshm/internal/bookmark"
 	"github.com/candratama/sshm/internal/config"
@@ -291,6 +292,15 @@ func (a AppModel) View() string {
 			StyleHelp.Render("  establishing SSH session...")
 		return StyleBorder.Render(body)
 	default:
-		return a.List.View()
+		view := a.List.View()
+		w := a.Width
+		h := a.Height
+		if w == 0 {
+			w = 80
+		}
+		if h == 0 {
+			h = 24
+		}
+		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, view)
 	}
 }
