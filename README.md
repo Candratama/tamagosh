@@ -4,22 +4,6 @@ A cozy little terminal SSH manager with a built-in SFTP browser. Pet your server
 
 Tamagosh keeps your SSH connections in one place, opens them with a single keypress, and includes a dual-pane SFTP browser for moving files around without leaving the terminal. Passwords are encrypted locally with AES-GCM — no `pass`, no GPG, no system keyring required.
 
-```
-       ████
-   ████████████
-  ███  ███  ███
- ████████████████
- ████████████████
- ███  ████  ████
-  ██   ██   ██
-
-████████  █████  ███    ███  █████   ██████   ██████  ███████ ██   ██
-   ██    ██   ██ ████  ████ ██   ██ ██       ██    ██ ██      ██   ██
-   ██    ███████ ██ ████ ██ ███████ ██   ███ ██    ██ ███████ ███████
-   ██    ██   ██ ██  ██  ██ ██   ██ ██    ██ ██    ██      ██ ██   ██
-   ██    ██   ██ ██      ██ ██   ██  ██████   ██████  ███████ ██   ██
-```
-
 ---
 
 ## Preview
