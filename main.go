@@ -92,6 +92,7 @@ func (demoPass) Set(string, string) error   { return nil }
 func (demoPass) Delete(string) error        { return nil }
 
 func runDemo() {
+	os.Setenv("TAMAGOSH_DEMO", "1")
 	// RFC 5737 documentation IP ranges — safe to publish: 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24
 	store := &config.Store{Connections: []config.Connection{
 		{Name: "digitalocean-sgp1", Host: "198.51.100.42", Port: 22, User: "root", PassKey: "ssh/digitalocean-sgp1"},

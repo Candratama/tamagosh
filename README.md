@@ -28,6 +28,10 @@ Tamagosh keeps your SSH connections in one place, opens them with a single keypr
 
 ![connection list demo](docs/vhs/list.gif)
 
+**SSH connect** — one keypress to a live shell
+
+![ssh demo](docs/vhs/ssh.gif)
+
 **Add / edit form** — fill in name/host/port/user/password, Tab to move
 
 ![form demo](docs/vhs/form.gif)
