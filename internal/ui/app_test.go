@@ -111,6 +111,62 @@ func TestAppDeleteMsgRemovesConnection(t *testing.T) {
 	}
 }
 
+func TestAppEditSwitchPasswordToKeyClearsStalePassword(t *testing.T) {
+	tmpPath := t.TempDir() + "/c.json"
+	// Existing connection saved with password auth.
+	p := &fakePass{values: map[string]string{"ssh/a": "old-pw"}}
+	s := &config.Store{Connections: []config.Connection{{
+		Name: "a", Host: "h", Port: 22, User: "u",
+		PassKey: "ssh/a", AuthMethod: "password",
+	}}}
+	a := NewApp(s, p, nil, tmpPath)
+	a.Mode = ModeList
+
+	// Edit same connection, switch to key auth with a passphrase.
+	a, _ = updateApp(a, FormSubmitMsg{
+		IsEdit:   true,
+		Original: "a",
+		Conn: config.Connection{
+			Name: "a", Host: "h", Port: 22, User: "u",
+			PassKey: "ssh/a", AuthMethod: "key", KeyPath: "/home/u/.ssh/id_ed25519",
+		},
+		Secret: FormSecret{Passphrase: "secret-pp"},
+	})
+	if _, exists := p.values["ssh/a"]; exists {
+		t.Fatal("stale password not cleared after switching to key auth")
+	}
+	if p.values["ssh/a:passphrase"] != "secret-pp" {
+		t.Fatalf("passphrase not stored: %q", p.values["ssh/a:passphrase"])
+	}
+}
+
+func TestAppEditSwitchKeyToPasswordClearsStalePassphrase(t *testing.T) {
+	tmpPath := t.TempDir() + "/c.json"
+	p := &fakePass{values: map[string]string{"ssh/a:passphrase": "old-pp"}}
+	s := &config.Store{Connections: []config.Connection{{
+		Name: "a", Host: "h", Port: 22, User: "u",
+		PassKey: "ssh/a", AuthMethod: "key", KeyPath: "/home/u/.ssh/id_ed25519",
+	}}}
+	a := NewApp(s, p, nil, tmpPath)
+	a.Mode = ModeList
+
+	a, _ = updateApp(a, FormSubmitMsg{
+		IsEdit:   true,
+		Original: "a",
+		Conn: config.Connection{
+			Name: "a", Host: "h", Port: 22, User: "u",
+			PassKey: "ssh/a", AuthMethod: "password",
+		},
+		Secret: FormSecret{Password: "new-pw"},
+	})
+	if _, exists := p.values["ssh/a:passphrase"]; exists {
+		t.Fatal("stale passphrase not cleared after switching to password auth")
+	}
+	if p.values["ssh/a"] != "new-pw" {
+		t.Fatalf("password not stored: %q", p.values["ssh/a"])
+	}
+}
+
 func updateApp(a AppModel, msg tea.Msg) (AppModel, tea.Cmd) {
 	nm, cmd := a.Update(msg)
 	return nm.(AppModel), cmd
