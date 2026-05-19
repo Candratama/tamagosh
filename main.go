@@ -22,7 +22,17 @@ func main() {
 		case "askpass":
 			// Internal subcommand invoked by ssh via SSH_ASKPASS.
 			// Prints $TAMAGOSH_PASSPHRASE followed by newline to stdout.
-			// Never logs, never reads files.
+			//
+			// Weak guard: ssh sets SSH_ASKPASS to the path of the askpass
+			// helper before exec. If a user invokes `tamagosh askpass`
+			// directly from a shell, SSH_ASKPASS will be unset (or point
+			// elsewhere) — refuse to print anything. Defense-in-depth only;
+			// the real protection is process credentials (env is readable
+			// only by the owning user).
+			if os.Getenv("SSH_ASKPASS") == "" {
+				fmt.Fprintln(os.Stderr, "askpass: internal subcommand, do not invoke directly")
+				os.Exit(2)
+			}
 			fmt.Println(os.Getenv("TAMAGOSH_PASSPHRASE"))
 			return
 		case "uninstall":
