@@ -226,7 +226,7 @@ func (a AppModel) handleSftp(c config.Connection) (tea.Model, tea.Cmd) {
 		a.List.Err = "pass: " + err.Error()
 		return a, nil
 	}
-	client, err := sftppkg.Connect(c, pwd)
+	client, err := sftppkg.Connect(c, sftppkg.Auth{Method: "password", Password: pwd})
 	if err != nil {
 		a.List.Err = "sftp: " + err.Error()
 		return a, nil

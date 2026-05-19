@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,15 +27,52 @@ type Client struct {
 	sftp *sftp.Client
 }
 
-func Connect(c config.Connection, password string) (*Client, error) {
+// Auth describes how to authenticate the SFTP session.
+type Auth struct {
+	Method     string // "password" | "key"
+	Password   string
+	KeyPath    string
+	Passphrase string
+}
+
+func Connect(c config.Connection, auth Auth) (*Client, error) {
 	port := c.Port
 	if port == 0 {
 		port = 22
 	}
+
+	var methods []ssh.AuthMethod
+	switch auth.Method {
+	case "key":
+		keyBytes, err := os.ReadFile(auth.KeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("read key %s: %w", auth.KeyPath, err)
+		}
+		var signer ssh.Signer
+		if auth.Passphrase == "" {
+			signer, err = ssh.ParsePrivateKey(keyBytes)
+		} else {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase(keyBytes, []byte(auth.Passphrase))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parse key: %w", err)
+		}
+		methods = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	default:
+		methods = []ssh.AuthMethod{ssh.Password(auth.Password)}
+	}
+
+	home, _ := os.UserHomeDir()
+	khPath := filepath.Join(home, ".ssh", "known_hosts")
+	hkCb, err := hostKeyCallback(khPath)
+	if err != nil {
+		return nil, fmt.Errorf("known_hosts: %w", err)
+	}
+
 	cfg := &ssh.ClientConfig{
 		User:            c.User,
-		Auth:            []ssh.AuthMethod{ssh.Password(password)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Auth:            methods,
+		HostKeyCallback: hkCb,
 		Timeout:         10 * time.Second,
 	}
 	addr := fmt.Sprintf("%s:%d", c.Host, port)
