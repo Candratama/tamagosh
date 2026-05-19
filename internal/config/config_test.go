@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -10,17 +11,20 @@ func TestLoadSaveRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "connections.json")
 
-	want := &Store{Connections: []Connection{
+	src := &Store{Connections: []Connection{
 		{Name: "atlantic", Host: "43.228.213.209", Port: 2255, User: "candra", PassKey: "ssh/atlantic"},
 	}}
 
-	if err := Save(path, want); err != nil {
+	if err := Save(path, src); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	got, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
+	want := &Store{Connections: []Connection{
+		{Name: "atlantic", Host: "43.228.213.209", Port: 2255, User: "candra", PassKey: "ssh/atlantic", AuthMethod: "password"},
+	}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("round-trip mismatch:\n got=%+v\nwant=%+v", got, want)
 	}
@@ -74,6 +78,49 @@ func TestDeleteConnection(t *testing.T) {
 	}
 	if err := s.Delete("a"); err == nil {
 		t.Fatalf("expected not-found error")
+	}
+}
+
+func TestLoadLegacyConnectionMigratesToPasswordAuth(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "connections.json")
+	legacy := `{"connections":[{"name":"old","host":"h","port":22,"user":"u","pass_key":"ssh/old"}]}`
+	if err := os.WriteFile(p, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Connections) != 1 {
+		t.Fatalf("want 1 conn, got %d", len(s.Connections))
+	}
+	c := s.Connections[0]
+	if c.AuthMethod != "password" {
+		t.Fatalf("AuthMethod=%q want 'password'", c.AuthMethod)
+	}
+	if c.KeyPath != "" {
+		t.Fatalf("KeyPath=%q want empty", c.KeyPath)
+	}
+}
+
+func TestLoadKeyAuthRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "connections.json")
+	s := &Store{Connections: []Connection{{
+		Name: "k", Host: "h", Port: 22, User: "u",
+		AuthMethod: "key", KeyPath: "/home/u/.ssh/id_ed25519", PassKey: "ssh/k",
+	}}}
+	if err := Save(p, s); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := loaded.Connections[0]
+	if c.AuthMethod != "key" || c.KeyPath != "/home/u/.ssh/id_ed25519" {
+		t.Fatalf("round-trip lost fields: %+v", c)
 	}
 }
 
