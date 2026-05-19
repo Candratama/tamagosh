@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -15,14 +14,9 @@ import (
 
 // Generate writes a new ed25519 SSH keypair to privPath (mode 0600) and
 // privPath+".pub" (mode 0644). If passphrase is non-empty, the private key is
-// encrypted. Refuses to overwrite existing files.
+// encrypted. The private key is created with O_EXCL to refuse overwriting
+// atomically (no TOCTOU window between check and write).
 func Generate(privPath, passphrase string) error {
-	if _, err := os.Stat(privPath); err == nil {
-		return fmt.Errorf("refusing to overwrite existing file: %s", privPath)
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return fmt.Errorf("ed25519 generate: %w", err)
@@ -30,9 +24,9 @@ func Generate(privPath, passphrase string) error {
 
 	var block *pem.Block
 	if passphrase == "" {
-		block, err = ssh.MarshalPrivateKey(priv, "tamagosh")
+		block, err = ssh.MarshalPrivateKey(priv, "")
 	} else {
-		block, err = ssh.MarshalPrivateKeyWithPassphrase(priv, "tamagosh", []byte(passphrase))
+		block, err = ssh.MarshalPrivateKeyWithPassphrase(priv, "", []byte(passphrase))
 	}
 	if err != nil {
 		return fmt.Errorf("marshal private: %w", err)
@@ -41,7 +35,20 @@ func Generate(privPath, passphrase string) error {
 	if err := os.MkdirAll(filepath.Dir(privPath), 0o700); err != nil {
 		return err
 	}
-	if err := os.WriteFile(privPath, pem.EncodeToMemory(block), 0o600); err != nil {
+	f, err := os.OpenFile(privPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("refusing to overwrite existing file: %s", privPath)
+		}
+		return err
+	}
+	if _, err := f.Write(pem.EncodeToMemory(block)); err != nil {
+		f.Close()
+		os.Remove(privPath)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(privPath)
 		return err
 	}
 
