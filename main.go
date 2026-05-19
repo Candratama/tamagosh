@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +16,17 @@ import (
 	"github.com/Candratama/tamagosh/internal/secret"
 	"github.com/Candratama/tamagosh/internal/ui"
 )
+
+// version returns the module version recorded by `go install <pkg>@<ver>`.
+// Falls back to "(devel)" for local `go build` / `go install .` from a
+// working tree. Build info is embedded by the Go toolchain — no ldflags
+// magic needed.
+func version() string {
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+		return info.Main.Version
+	}
+	return "(devel)"
+}
 
 func main() {
 	if len(os.Args) > 1 {
@@ -42,7 +54,7 @@ func main() {
 			usage()
 			return
 		case "--version", "-v", "version":
-			fmt.Println("tamagosh")
+			fmt.Printf("tamagosh %s\n", version())
 			return
 		}
 	}
