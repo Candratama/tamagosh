@@ -408,6 +408,7 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if m.ShowHelp {
+			ms := m.helpMaxScroll()
 			switch msg.Type {
 			case tea.KeyUp:
 				if m.HelpScroll > 0 {
@@ -415,7 +416,9 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case tea.KeyDown:
-				m.HelpScroll++
+				if m.HelpScroll < ms {
+					m.HelpScroll++
+				}
 				return m, nil
 			case tea.KeyPgUp:
 				m.HelpScroll -= 5
@@ -425,9 +428,15 @@ func (m SftpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case tea.KeyPgDown:
 				m.HelpScroll += 5
+				if m.HelpScroll > ms {
+					m.HelpScroll = ms
+				}
 				return m, nil
 			case tea.KeyHome:
 				m.HelpScroll = 0
+				return m, nil
+			case tea.KeyEnd:
+				m.HelpScroll = ms
 				return m, nil
 			}
 			m.ShowHelp = false
@@ -1235,13 +1244,16 @@ func (m SftpModel) hitTestEntry(x, y int) (Pane, int, bool) {
 
 func (m SftpModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.ShowHelp {
+		ms := m.helpMaxScroll()
 		switch msg.Button {
 		case tea.MouseButtonWheelUp:
 			if m.HelpScroll > 0 {
 				m.HelpScroll--
 			}
 		case tea.MouseButtonWheelDown:
-			m.HelpScroll++
+			if m.HelpScroll < ms {
+				m.HelpScroll++
+			}
 		}
 		return m, nil
 	}
@@ -1372,55 +1384,86 @@ func centerTitle(body, title string) string {
 	return titleLine + "\n" + body
 }
 
-func renderHelpBox(width, maxRows int, scroll *int) string {
-	groups := []struct {
-		title string
-		keys  []keyHint
-	}{
-		{"Navigation", []keyHint{
-			{"Tab", "switch active pane"},
-			{"↑/↓", "move cursor"},
-			{"→/Enter", "open folder"},
-			{"←", "back to previous folder"},
-			{"Bksp", "parent folder"},
-			{"PgUp/PgDn", "page up/down"},
-			{"Home/End", "first/last item"},
-			{"g", "goto path (prompt)"},
-			{"'", "open bookmark list"},
-		}},
-		{"Selection", []keyHint{
-			{"Space", "toggle select on file"},
-			{"a", "select all files in pane"},
-			{"A", "clear selection"},
-		}},
-		{"File operations", []keyHint{
-			{"c", "copy (file or directory, recursive)"},
-			{"d", "delete (with confirm)"},
-			{"R", "rename cursor item"},
-			{"m", "make new directory"},
-			{"e", "edit in $EDITOR (auto upload if remote)"},
-			{"x", "chmod (octal mode, e.g. 644)"},
-			{"b", "bookmark current dir"},
-		}},
-		{"View", []keyHint{
-			{"s", "cycle sort: name/size/mtime"},
-			{"S", "toggle sort direction"},
-			{"/", "search/filter pane"},
-			{".", "toggle hidden files"},
-			{"i", "show file info"},
-			{"r", "refresh both panes"},
-		}},
-		{"Mouse", []keyHint{
-			{"left-click", "focus pane + move cursor"},
-			{"double-click", "open folder under cursor"},
-			{"right-click", "toggle select on file"},
-			{"wheel up/dn", "scroll cursor in active pane"},
-		}},
-		{"System", []keyHint{
-			{"h or ?", "this help"},
-			{"q", "back to connection list"},
-		}},
+var helpGroups = []struct {
+	title string
+	keys  []keyHint
+}{
+	{"Navigation", []keyHint{
+		{"Tab", "switch active pane"},
+		{"↑/↓", "move cursor"},
+		{"→/Enter", "open folder"},
+		{"←", "back to previous folder"},
+		{"Bksp", "parent folder"},
+		{"PgUp/PgDn", "page up/down"},
+		{"Home/End", "first/last item"},
+		{"g", "goto path (prompt)"},
+		{"'", "open bookmark list"},
+	}},
+	{"Selection", []keyHint{
+		{"Space", "toggle select on file"},
+		{"a", "select all files in pane"},
+		{"A", "clear selection"},
+	}},
+	{"File operations", []keyHint{
+		{"c", "copy (file or directory, recursive)"},
+		{"d", "delete (with confirm)"},
+		{"R", "rename cursor item"},
+		{"m", "make new directory"},
+		{"e", "edit in $EDITOR (auto upload if remote)"},
+		{"x", "chmod (octal mode, e.g. 644)"},
+		{"b", "bookmark current dir"},
+	}},
+	{"View", []keyHint{
+		{"s", "cycle sort: name/size/mtime"},
+		{"S", "toggle sort direction"},
+		{"/", "search/filter pane"},
+		{".", "toggle hidden files"},
+		{"i", "show file info"},
+		{"r", "refresh both panes"},
+	}},
+	{"Mouse", []keyHint{
+		{"left-click", "focus pane + move cursor"},
+		{"double-click", "open folder under cursor"},
+		{"right-click", "toggle select on file"},
+		{"wheel up/dn", "scroll cursor in active pane"},
+	}},
+	{"System", []keyHint{
+		{"h or ?", "this help"},
+		{"q", "back to connection list"},
+	}},
+}
+
+// helpTotalLines counts rendered lines including section headers and inter-group blanks.
+func helpTotalLines() int {
+	n := 0
+	for gi, g := range helpGroups {
+		if gi > 0 {
+			n++ // blank separator
+		}
+		n++ // section title
+		n += len(g.keys)
 	}
+	return n
+}
+
+func (m SftpModel) helpMaxScroll() int {
+	maxRows := m.Height - 6
+	if maxRows < 10 {
+		maxRows = 10
+	}
+	visible := maxRows - 2
+	if visible < 5 {
+		visible = 5
+	}
+	ms := helpTotalLines() - visible
+	if ms < 0 {
+		ms = 0
+	}
+	return ms
+}
+
+func renderHelpBox(width, maxRows int, scroll *int) string {
+	groups := helpGroups
 
 	var lines []string
 	for gi, g := range groups {
