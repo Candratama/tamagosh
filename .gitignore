@@ -5,3 +5,4 @@ sshm
 *.test
 *.out
 .DS_Store
+docs/vhs/combined.gif
