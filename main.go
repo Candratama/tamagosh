@@ -28,6 +28,9 @@ func main() {
 		case "--version", "-v", "version":
 			fmt.Println("tamagosh")
 			return
+		case "--demo", "demo":
+			runDemo()
+			return
 		}
 	}
 	if err := preflight(); err != nil {
@@ -72,6 +75,7 @@ func usage() {
 
 usage:
   tamagosh             launch TUI
+  tamagosh demo        launch with fake connections (for demos/screenshots)
   tamagosh uninstall   remove config dir + binary (interactive)
   tamagosh help        this message
   tamagosh version     show name
@@ -79,6 +83,45 @@ usage:
 env:
   TAMAGOSH_HOME        override default config dir (~/.config/tamagosh)
   EDITOR / VISUAL      editor for [e] key in SFTP browser`)
+}
+
+type demoPass struct{}
+
+func (demoPass) Get(string) (string, error) { return "demo", nil }
+func (demoPass) Set(string, string) error   { return nil }
+func (demoPass) Delete(string) error        { return nil }
+
+func runDemo() {
+	// RFC 5737 documentation IP ranges — safe to publish: 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24
+	store := &config.Store{Connections: []config.Connection{
+		{Name: "digitalocean-sgp1", Host: "198.51.100.42", Port: 22, User: "root", PassKey: "ssh/digitalocean-sgp1"},
+		{Name: "aws-ec2-tokyo", Host: "203.0.113.15", Port: 22, User: "ubuntu", PassKey: "ssh/aws-ec2-tokyo"},
+		{Name: "vultr-singapore", Host: "192.0.2.88", Port: 22, User: "root", PassKey: "ssh/vultr-singapore"},
+		{Name: "linode-frankfurt", Host: "198.51.100.171", Port: 2222, User: "admin", PassKey: "ssh/linode-frankfurt"},
+		{Name: "hetzner-helsinki", Host: "203.0.113.99", Port: 22, User: "root", PassKey: "ssh/hetzner-helsinki"},
+		{Name: "fly-iad", Host: "192.0.2.7", Port: 22, User: "deploy", PassKey: "ssh/fly-iad"},
+		{Name: "scaleway-paris", Host: "203.0.113.221", Port: 22, User: "root", PassKey: "ssh/scaleway-paris"},
+	}}
+
+	tmp, err := os.MkdirTemp("", "tamagosh-demo-*")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "demo: tmp dir:", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(tmp)
+
+	bm, err := bookmark.New(tmp)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "demo: bookmark:", err)
+		os.Exit(1)
+	}
+
+	app := ui.NewApp(store, demoPass{}, bm, filepath.Join(tmp, "connections.json"))
+	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "tea:", err)
+		os.Exit(1)
+	}
 }
 
 func uninstall() {

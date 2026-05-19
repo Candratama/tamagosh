@@ -12,7 +12,7 @@ Set TypingSpeed 80ms
 Set Padding 20
 
 Hide
-Type "tamagosh"
+Type "tamagosh demo"
 Enter
 Sleep 1s
 Show

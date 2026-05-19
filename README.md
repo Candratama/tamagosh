@@ -24,6 +24,22 @@ Tamagosh keeps your SSH connections in one place, opens them with a single keypr
 
 ## Preview
 
+**Connection list** — browse, filter, hit Enter to SSH
+
+![connection list demo](docs/vhs/list.gif)
+
+**Add / edit form** — fill in name/host/port/user/password, Tab to move
+
+![form demo](docs/vhs/form.gif)
+
+**SFTP browser** — dual-pane, navigate, help overlay, file info
+
+![sftp demo](docs/vhs/sftp.gif)
+
+---
+
+### Static screens (ASCII mockups)
+
 **Connection list**
 
 ```
