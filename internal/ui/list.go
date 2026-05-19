@@ -145,35 +145,85 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ListModel) View() string {
-	var b strings.Builder
 	visible := m.Visible()
+
+	// Build the row block. Each row uses fixed-width columns so the
+	// host/port columns line up. We compute the max rendered width to
+	// horizontally center the whole block inside the box.
+	type styledLine struct {
+		text  string
+		plain string // unstyled, for width measurement
+	}
+	var rows []styledLine
+
 	if len(visible) == 0 {
-		b.WriteString(StyleHelp.Render("  (no connections — press 'n' to add)"))
-		b.WriteString("\n")
+		raw := "(no connections — press 'n' to add)"
+		rows = append(rows, styledLine{text: StyleHelp.Render(raw), plain: raw})
 	}
 	for i, c := range visible {
-		line := fmt.Sprintf("  %-12s %-18s :%d", c.Name, c.Host, c.Port)
+		raw := fmt.Sprintf("  %-12s %-18s :%d", c.Name, c.Host, c.Port)
+		var styled string
 		if i == m.Cursor {
-			line = StyleSelected.Render("▸ " + strings.TrimLeft(line, " "))
+			styled = StyleSelected.Render("▸ " + strings.TrimLeft(raw, " "))
 		} else {
-			line = StyleNormal.Render(line)
+			styled = StyleNormal.Render(raw)
 		}
-		b.WriteString(line)
+		rows = append(rows, styledLine{text: styled, plain: raw})
+	}
+
+	// Footer (filter prompt OR shortcut hint).
+	var footer styledLine
+	if m.Filtering {
+		raw := fmt.Sprintf("/%s_", m.Filter)
+		footer = styledLine{text: StyleHelp.Render(raw), plain: raw}
+	} else {
+		raw := "[n]ew [e]dit [d]el [f]sftp [K]eygen [/]find [q]uit"
+		footer = styledLine{text: StyleHelp.Render(raw), plain: raw}
+	}
+
+	// Find the widest plain row to align everything against.
+	maxW := lipgloss.Width(footer.plain)
+	for _, r := range rows {
+		if w := lipgloss.Width(r.plain); w > maxW {
+			maxW = w
+		}
+	}
+	title := "Connection List"
+	if w := lipgloss.Width(title); w > maxW {
+		maxW = w
+	}
+
+	pad := func(s string, w int) string {
+		gap := maxW - w
+		if gap <= 0 {
+			return s
+		}
+		half := gap / 2
+		return strings.Repeat(" ", half) + s
+	}
+
+	var b strings.Builder
+	titleStyled := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color(gbYellow)).
+		Render(title)
+	b.WriteString(pad(titleStyled, lipgloss.Width(title)))
+	b.WriteString("\n\n")
+
+	for _, r := range rows {
+		b.WriteString(pad(r.text, lipgloss.Width(r.plain)))
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	if m.Filtering {
-		b.WriteString(StyleHelp.Render(fmt.Sprintf("  /%s_", m.Filter)))
-	} else {
-		b.WriteString(StyleHelp.Render("  [n]ew [e]dit [d]el [f]sftp [K]eygen [/]find [q]uit"))
-	}
+	b.WriteString(pad(footer.text, lipgloss.Width(footer.plain)))
+
 	if m.Info != "" {
 		b.WriteString("\n")
-		b.WriteString(StyleSuccess.Render("  " + m.Info))
+		b.WriteString(pad(StyleSuccess.Render(m.Info), lipgloss.Width(m.Info)))
 	}
 	if m.Err != "" {
 		b.WriteString("\n")
-		b.WriteString(StyleError.Render("  " + m.Err))
+		b.WriteString(pad(StyleError.Render(m.Err), lipgloss.Width(m.Err)))
 	}
 	box := StyleBorder.Render(b.String())
 	return lipgloss.JoinVertical(lipgloss.Center, renderHeader(), "", box)
