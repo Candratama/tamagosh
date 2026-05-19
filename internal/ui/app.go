@@ -25,6 +25,7 @@ const (
 	ModeSftp
 	ModeConnecting
 	ModeSplash
+	ModeKeygen
 )
 
 type SplashDoneMsg struct{}
@@ -52,6 +53,7 @@ type AppModel struct {
 	List      ListModel
 	Form      FormModel
 	Sftp      SftpModel
+	Keygen    KeygenModel
 	Pending   config.Connection
 	Width     int
 	Height    int
@@ -108,6 +110,22 @@ func (a AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case OpenSftpMsg:
 		return a.handleSftp(m.Conn)
+	case KeygenStartMsg:
+		cfgDir := filepath.Dir(a.StorePath)
+		a.Keygen = NewKeygenModel(cfgDir)
+		a.Mode = ModeKeygen
+		return a, nil
+	case KeygenCancelMsg:
+		a.Mode = ModeList
+		return a, nil
+	case KeygenDoneMsg:
+		if m.Err != nil {
+			a.Keygen.Err = m.Err.Error()
+			return a, nil
+		}
+		a.List.Err = "generated: " + m.Path
+		a.Mode = ModeList
+		return a, nil
 	case SftpQuitMsg:
 		if a.Sftp.Client != nil {
 			a.Sftp.Client.Close()
@@ -140,6 +158,10 @@ func (a AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModeSftp:
 		nm, cmd := a.Sftp.Update(msg)
 		a.Sftp = nm.(SftpModel)
+		return a, cmd
+	case ModeKeygen:
+		nm, cmd := a.Keygen.Update(msg)
+		a.Keygen = nm.(KeygenModel)
 		return a, cmd
 	}
 	return a, nil
@@ -301,6 +323,8 @@ func (a AppModel) View() string {
 	switch a.Mode {
 	case ModeForm:
 		return centered(a.Form.View())
+	case ModeKeygen:
+		return centered(a.Keygen.View())
 	case ModeSftp:
 		return a.Sftp.View()
 	case ModeConfirmDelete:

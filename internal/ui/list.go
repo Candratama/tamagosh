@@ -134,6 +134,8 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, func() tea.Msg { return OpenSftpMsg{Conn: sel} }
+		case "K":
+			return m, func() tea.Msg { return KeygenStartMsg{} }
 		case "q":
 			return m, tea.Quit
 		}
@@ -162,7 +164,7 @@ func (m ListModel) View() string {
 	if m.Filtering {
 		b.WriteString(StyleHelp.Render(fmt.Sprintf("  /%s_", m.Filter)))
 	} else {
-		b.WriteString(StyleHelp.Render("  [n]ew [e]dit [d]el [f]sftp [/]find [q]uit"))
+		b.WriteString(StyleHelp.Render("  [n]ew [e]dit [d]el [f]sftp [K]eygen [/]find [q]uit"))
 	}
 	if m.Err != "" {
 		b.WriteString("\n")
