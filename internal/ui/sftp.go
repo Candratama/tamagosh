@@ -2019,8 +2019,18 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 	pane := m.Active
 	var localPath, remotePath, cleanup string
 
+	// Reject filenames containing path separators or control bytes. A malicious
+	// SFTP server can return entries like "../../etc/cron.d/evil"; filepath.Join
+	// would clean those and let the editor open a file outside our intended dir.
+	safeName := filepath.Base(e.Name)
+	if safeName != e.Name || safeName == "." || safeName == ".." || safeName == "" ||
+		strings.ContainsAny(safeName, "/\\\x00\n\r") {
+		m.Err = "invalid filename for edit: " + e.Name
+		return nil
+	}
+
 	if pane == PaneLocal {
-		localPath = filepath.Join(m.LocalDir, e.Name)
+		localPath = filepath.Join(m.LocalDir, safeName)
 	} else {
 		if m.Client == nil {
 			return nil
@@ -2030,7 +2040,7 @@ func (m *SftpModel) editCurrent() tea.Cmd {
 			m.Err = err.Error()
 			return nil
 		}
-		localPath = filepath.Join(tmpDir, e.Name)
+		localPath = filepath.Join(tmpDir, safeName)
 		remotePath = sftppkg.Join(m.RemoteDir, e.Name)
 		if err := m.Client.Download(remotePath, localPath); err != nil {
 			os.RemoveAll(tmpDir)

@@ -79,3 +79,52 @@ func TestKeyFilePermissions(t *testing.T) {
 		t.Fatalf("key perm=%v want 0600", info.Mode().Perm())
 	}
 }
+
+func TestPassphraseNamespaceDoesNotCollideWithPassword(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set("ssh/foo", "password-123"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPassphrase("ssh/foo", "passphrase-xyz"); err != nil {
+		t.Fatal(err)
+	}
+	pwd, err := s.Get("ssh/foo")
+	if err != nil || pwd != "password-123" {
+		t.Fatalf("Get password: %q err=%v", pwd, err)
+	}
+	pp, err := s.GetPassphrase("ssh/foo")
+	if err != nil || pp != "passphrase-xyz" {
+		t.Fatalf("GetPassphrase: %q err=%v", pp, err)
+	}
+	if err := s.DeletePassphrase("ssh/foo"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GetPassphrase("ssh/foo"); err == nil {
+		t.Fatal("GetPassphrase after delete should fail")
+	}
+	if pwd, _ = s.Get("ssh/foo"); pwd != "password-123" {
+		t.Fatal("password lost after passphrase delete")
+	}
+}
+
+func TestGetPassphraseEmpty(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPassphrase("ssh/x", ""); err != nil {
+		t.Fatal(err)
+	}
+	pp, err := s.GetPassphrase("ssh/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pp != "" {
+		t.Fatalf("empty passphrase round-trip got %q", pp)
+	}
+}

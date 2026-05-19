@@ -10,11 +10,13 @@ import (
 )
 
 type Connection struct {
-	Name    string `json:"name"`
-	Host    string `json:"host"`
-	Port    int    `json:"port"`
-	User    string `json:"user"`
-	PassKey string `json:"pass_key"`
+	Name       string `json:"name"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	User       string `json:"user"`
+	PassKey    string `json:"pass_key"`
+	AuthMethod string `json:"auth_method"`
+	KeyPath    string `json:"key_path,omitempty"`
 }
 
 type Store struct {
@@ -36,11 +38,16 @@ func Load(path string) (*Store, error) {
 	if s.Connections == nil {
 		s.Connections = []Connection{}
 	}
+	for i := range s.Connections {
+		if s.Connections[i].AuthMethod == "" {
+			s.Connections[i].AuthMethod = "password"
+		}
+	}
 	return s, nil
 }
 
 func Save(path string, s *Store) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(s, "", "  ")

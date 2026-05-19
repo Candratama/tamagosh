@@ -19,6 +19,22 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "askpass":
+			// Internal subcommand invoked by ssh via SSH_ASKPASS.
+			// Prints $TAMAGOSH_PASSPHRASE followed by newline to stdout.
+			//
+			// Weak guard: ssh sets SSH_ASKPASS to the path of the askpass
+			// helper before exec. If a user invokes `tamagosh askpass`
+			// directly from a shell, SSH_ASKPASS will be unset (or point
+			// elsewhere) — refuse to print anything. Defense-in-depth only;
+			// the real protection is process credentials (env is readable
+			// only by the owning user).
+			if os.Getenv("SSH_ASKPASS") == "" {
+				fmt.Fprintln(os.Stderr, "askpass: internal subcommand, do not invoke directly")
+				os.Exit(2)
+			}
+			fmt.Println(os.Getenv("TAMAGOSH_PASSPHRASE"))
+			return
 		case "uninstall":
 			uninstall()
 			return
@@ -125,13 +141,17 @@ func preflight() error {
 	if _, err := exec.LookPath("ssh"); err != nil {
 		return fmt.Errorf("ssh not found in PATH — install OpenSSH client")
 	}
+	// sshpass is only required for password-auth connections. Key auth works
+	// without it. Warn instead of fail so key-only users aren't forced to
+	// install it. SSH connect will emit a clear error if a password connection
+	// is selected and sshpass isn't present.
 	if _, err := exec.LookPath("sshpass"); err != nil {
 		hint := "brew install hudochenkov/sshpass/sshpass  (macOS)"
 		switch runtime.GOOS {
 		case "linux":
 			hint = "apt-get install sshpass  /  pacman -S sshpass  /  dnf install sshpass"
 		}
-		return fmt.Errorf("sshpass not installed — %s", hint)
+		fmt.Fprintf(os.Stderr, "note: sshpass not installed — password auth disabled, key auth works (%s)\n", hint)
 	}
 
 	cfgPath, err := config.DefaultPath()

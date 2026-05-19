@@ -22,6 +22,7 @@ type ListModel struct {
 	Filter    string
 	Filtering bool
 	Err       string
+	Info      string // success / informational toast (rendered green)
 }
 
 func NewListModel(s *config.Store) ListModel {
@@ -134,6 +135,8 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, func() tea.Msg { return OpenSftpMsg{Conn: sel} }
+		case "K":
+			return m, func() tea.Msg { return KeygenStartMsg{} }
 		case "q":
 			return m, tea.Quit
 		}
@@ -142,31 +145,88 @@ func (m ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ListModel) View() string {
-	var b strings.Builder
 	visible := m.Visible()
+
+	type styledLine struct {
+		text  string
+		plain string
+	}
+	var rows []styledLine
+
 	if len(visible) == 0 {
-		b.WriteString(StyleHelp.Render("  (no connections — press 'n' to add)"))
-		b.WriteString("\n")
+		raw := "(no connections — press 'n' to add)"
+		rows = append(rows, styledLine{text: StyleHelp.Render(raw), plain: raw})
 	}
 	for i, c := range visible {
-		line := fmt.Sprintf("  %-12s %-18s :%d", c.Name, c.Host, c.Port)
+		raw := fmt.Sprintf("  %-12s %-18s :%d", c.Name, c.Host, c.Port)
+		var styled string
 		if i == m.Cursor {
-			line = StyleSelected.Render("▸ " + strings.TrimLeft(line, " "))
+			styled = StyleSelected.Render("▸ " + strings.TrimLeft(raw, " "))
 		} else {
-			line = StyleNormal.Render(line)
+			styled = StyleNormal.Render(raw)
 		}
+		rows = append(rows, styledLine{text: styled, plain: raw})
+	}
+
+	var footer styledLine
+	if m.Filtering {
+		raw := fmt.Sprintf("/%s_", m.Filter)
+		footer = styledLine{text: StyleHelp.Render(raw), plain: raw}
+	} else {
+		raw := "[n]ew [e]dit [d]el [f]sftp [K]eygen [/]find [q]uit"
+		footer = styledLine{text: StyleHelp.Render(raw), plain: raw}
+	}
+
+	title := "Connection List"
+
+	// widest content line drives the box's natural width.
+	widestRow := 0
+	for _, r := range rows {
+		if w := lipgloss.Width(r.plain); w > widestRow {
+			widestRow = w
+		}
+	}
+	contentW := widestRow
+	if w := lipgloss.Width(footer.plain); w > contentW {
+		contentW = w
+	}
+	if w := lipgloss.Width(title); w > contentW {
+		contentW = w
+	}
+	// breathing room on both sides so rows don't hug edges
+	const sidePad = 6
+	targetW := contentW + sidePad*2
+
+	// Uniform left shift for the row block — same pad for every row, so
+	// columns stay vertically aligned and the whole block sits centered.
+	rowShift := (targetW - widestRow) / 2
+
+	var b strings.Builder
+	titleStyled := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color(gbYellow)).
+		Render(title)
+	b.WriteString(lipgloss.PlaceHorizontal(targetW, lipgloss.Center, titleStyled))
+	b.WriteString("\n\n")
+
+	shift := strings.Repeat(" ", rowShift)
+	for _, r := range rows {
+		// pad row block uniformly on the left; right side fills with spaces
+		// up to targetW so the box width is stable.
+		line := lipgloss.PlaceHorizontal(targetW, lipgloss.Left, shift+r.text)
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	if m.Filtering {
-		b.WriteString(StyleHelp.Render(fmt.Sprintf("  /%s_", m.Filter)))
-	} else {
-		b.WriteString(StyleHelp.Render("  [n]ew [e]dit [d]el [f]sftp [/]find [q]uit"))
+	b.WriteString(lipgloss.PlaceHorizontal(targetW, lipgloss.Center, footer.text))
+
+	if m.Info != "" {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.PlaceHorizontal(targetW, lipgloss.Center, StyleSuccess.Render(m.Info)))
 	}
 	if m.Err != "" {
 		b.WriteString("\n")
-		b.WriteString(StyleError.Render("  " + m.Err))
+		b.WriteString(lipgloss.PlaceHorizontal(targetW, lipgloss.Center, StyleError.Render(m.Err)))
 	}
 	box := StyleBorder.Render(b.String())
 	return lipgloss.JoinVertical(lipgloss.Center, renderHeader(), "", box)

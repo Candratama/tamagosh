@@ -36,6 +36,9 @@ var (
 	StyleError = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(gbRed))
 
+	StyleSuccess = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(gbGreen))
+
 	// Unified subtle border — used for all box chrome.
 	StyleBorder = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
