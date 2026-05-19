@@ -32,6 +32,9 @@ Tamagosh keeps your SSH connections in one place, opens them with a single keypr
 
 - **Connection list** — name, host, port, user. Add / edit / delete with one key.
 - **One-press SSH connect** — `Enter` and you're in. Password injected via `sshpass`.
+- **Two auth modes** — password (encrypted, needs `sshpass`) or SSH key (ed25519 generate or import).
+- **Built-in keygen** — press `K` in the list to generate an ed25519 key with optional passphrase.
+- **Host key verification** — first connect appends to `~/.ssh/known_hosts`, subsequent connects verify.
 - **Built-in SFTP browser** — dual-pane (local ↔ remote), Norton-style.
   - Copy files **and** whole directories (recursive, with a real byte-level progress bar).
   - Multi-select, delete, rename, mkdir, chmod, goto-path, sort, hidden toggle, in-pane search.
@@ -45,9 +48,45 @@ Tamagosh keeps your SSH connections in one place, opens them with a single keypr
 
 ---
 
+## Authentication
+
+Tamagosh supports two auth methods per connection:
+
+- **Password** (default) — encrypted locally with AES-GCM. Requires `sshpass`.
+- **SSH key** — private key on disk (PEM/OpenSSH format). Passphrase optional; if set, encrypted locally too.
+
+In the connection form, the `Auth` field toggles between the two — press `Space`, `←/→`, or `Enter` on it to flip modes. The visible fields adapt automatically.
+
+### Using an existing key
+
+Toggle `Auth: SSH Key`, then fill:
+- `Key Path` — absolute path, e.g. `~/.ssh/id_ed25519` or `~/.config/tamagosh/keys/myhost`
+- `Passphrase` — leave blank if the key is unencrypted
+
+The passphrase (if any) is encrypted with the same AES-GCM key as passwords, and fed to `ssh` via `SSH_ASKPASS` at connect time — it never appears in process args.
+
+### Generating a new key in-app
+
+Press `K` (capital) in the connection list. Tamagosh prompts for a name and optional passphrase, then writes:
+
+- `~/.config/tamagosh/keys/<name>` — private key, mode `0600`
+- `~/.config/tamagosh/keys/<name>.pub` — public key, mode `0644`
+
+Copy the public key to the server:
+
+```bash
+ssh-copy-id -i ~/.config/tamagosh/keys/<name>.pub user@host
+```
+
+Then add a connection in tamagosh pointing to `~/.config/tamagosh/keys/<name>`.
+
+Key names must match `[a-zA-Z0-9_][a-zA-Z0-9._-]*` — no path separators, no `..`, no leading dots.
+
+---
+
 ## Install
 
-You need **Go 1.22+** and the `sshpass` binary.
+You need **Go 1.22+**. You also need `sshpass` **only if you plan to use password authentication**. SSH key auth works without it.
 
 ```bash
 # 1. install sshpass (macOS)
@@ -61,6 +100,8 @@ sudo dnf install sshpass        # Fedora
 # 2. install tamagosh
 go install github.com/Candratama/tamagosh@latest
 ```
+
+> Skipping `sshpass` is fine if you'll only use SSH keys — tamagosh will print a one-line note on startup and key-auth connections will keep working.
 
 Make sure `~/go/bin` is in your `PATH`:
 
@@ -111,6 +152,7 @@ Passwords are encrypted with the AES key in `~/.config/tamagosh/key` and stored 
 | `Enter` | SSH into selected |
 | `f` | open SFTP browser |
 | `n` | new connection |
+| `K` | generate ed25519 SSH key |
 | `e` | edit selected |
 | `d` | delete selected (with confirmation) |
 | `/` | filter by name/host |
@@ -285,8 +327,8 @@ Go module proxy caches `@latest`. Pin explicitly: `go install github.com/Candrat
 - Key file (`key`) is created with mode `0600` (owner read/write only).
 - Secrets file (`secrets.json`) is also `0600`.
 - The key is **local-only** — never transmitted, never synced. If you sync `TAMAGOSH_HOME` across machines, sync the key over a trusted channel (e.g., encrypted cloud storage), or re-add connections per machine.
-- SSH host key verification: `StrictHostKeyChecking=accept-new` — first connection auto-accepts, subsequent connections verify. Tamagosh doesn't manage `known_hosts` itself; it delegates to your OpenSSH client.
-- SFTP host key: currently uses `InsecureIgnoreHostKey()` for the in-process SFTP session. **Don't use over untrusted networks.** This will tighten up in a future release.
+- **Host key verification:** Both SSH and SFTP verify against `~/.ssh/known_hosts`. First-time hosts are auto-appended (parity with OpenSSH's `accept-new`). Mismatches abort the connection with a clear error.
+- **Key passphrases:** Stored encrypted via the same AES-GCM mechanism as passwords. Fed to `ssh` via an `SSH_ASKPASS` helper (`tamagosh askpass` internal subcommand) so passphrases never appear in process args.
 
 ---
 
@@ -300,7 +342,6 @@ Things that would be nice but aren't built yet:
 - **Background transfer queue** — keep using the TUI while uploads run
 - **Image / file preview** — Kitty graphics protocol, like yazi
 - **Bulk rename via editor**
-- **Key-based SSH auth** — currently password-only
 - **Jump hosts / ProxyJump**
 - **Port forwarding**
 - **Windows support** — needs `sshpass` replacement (in-process SSH PTY)
