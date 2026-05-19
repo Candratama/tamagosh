@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -10,6 +12,25 @@ import (
 
 	"github.com/Candratama/tamagosh/internal/config"
 )
+
+// expandHome resolves a leading "~/" (or bare "~") in a path to the user's
+// home directory. Other tilde patterns (e.g. "~user/...") are left as-is.
+// Go's os.ReadFile doesn't expand tildes, so paths must be normalized
+// before they reach the file-read layer.
+func expandHome(p string) string {
+	if p == "~" {
+		if h, err := os.UserHomeDir(); err == nil {
+			return h
+		}
+		return p
+	}
+	if strings.HasPrefix(p, "~/") {
+		if h, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(h, p[2:])
+		}
+	}
+	return p
+}
 
 const (
 	FieldName = iota
@@ -152,7 +173,7 @@ func (m FormModel) Build() (config.Connection, FormSecret, error) {
 	}
 	sec := FormSecret{}
 	if m.Auth == "key" {
-		conn.KeyPath = strings.TrimSpace(m.Fields[FieldKeyPath].Value)
+		conn.KeyPath = expandHome(strings.TrimSpace(m.Fields[FieldKeyPath].Value))
 		if conn.KeyPath == "" {
 			return config.Connection{}, FormSecret{}, fmt.Errorf("key path required")
 		}

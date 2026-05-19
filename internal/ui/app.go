@@ -170,7 +170,12 @@ func (a AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a AppModel) handleSubmit(m FormSubmitMsg) (tea.Model, tea.Cmd) {
 	if m.IsEdit {
 		if m.Conn.Name != m.Original {
+			// Fetch the stored old PassKey rather than reconstructing —
+			// keeps cleanup correct if PassKey ever decouples from Name.
 			oldKey := "ssh/" + m.Original
+			if oldConn, _, ok := a.Store.Find(m.Original); ok && oldConn.PassKey != "" {
+				oldKey = oldConn.PassKey
+			}
 			_ = a.Pass.Delete(oldKey)
 			_ = a.Pass.DeletePassphrase(oldKey)
 			if err := a.Store.Delete(m.Original); err != nil {

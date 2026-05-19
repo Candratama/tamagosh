@@ -44,9 +44,22 @@ func Connect(c config.Connection, auth Auth) (*Client, error) {
 	var methods []ssh.AuthMethod
 	switch auth.Method {
 	case "key":
-		keyBytes, err := os.ReadFile(auth.KeyPath)
+		keyPath := auth.KeyPath
+		// Defensive tilde expansion for legacy stored paths. Form.Build
+		// now expands at save time, but old connections.json files may
+		// still contain "~/..." entries. Go's os.ReadFile doesn't expand.
+		if strings.HasPrefix(keyPath, "~/") {
+			if home, herr := os.UserHomeDir(); herr == nil {
+				keyPath = filepath.Join(home, keyPath[2:])
+			}
+		} else if keyPath == "~" {
+			if home, herr := os.UserHomeDir(); herr == nil {
+				keyPath = home
+			}
+		}
+		keyBytes, err := os.ReadFile(keyPath)
 		if err != nil {
-			return nil, fmt.Errorf("read key %s: %w", auth.KeyPath, err)
+			return nil, fmt.Errorf("read key %s: %w", keyPath, err)
 		}
 		var signer ssh.Signer
 		if auth.Passphrase == "" {

@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Candratama/tamagosh/internal/config"
@@ -82,6 +85,28 @@ func TestFormBuildRejectsColonInName(t *testing.T) {
 	m.Fields[FieldUser].Value = "u"
 	if _, _, err := m.Build(); err == nil {
 		t.Fatal("expected error for ':' in connection name")
+	}
+}
+
+func TestFormBuildExpandsTildeInKeyPath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home dir")
+	}
+	m := NewFormModel(emptyConn(), false)
+	m.SetAuth("key")
+	fillBaseFields(&m)
+	m.Fields[FieldKeyPath].Value = "~/.ssh/id_ed25519"
+	c, _, err := m.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, ".ssh", "id_ed25519")
+	if c.KeyPath != want {
+		t.Fatalf("KeyPath=%q want %q (~/ should expand at save time)", c.KeyPath, want)
+	}
+	if strings.HasPrefix(c.KeyPath, "~") {
+		t.Fatal("KeyPath still starts with ~ after Build")
 	}
 }
 
