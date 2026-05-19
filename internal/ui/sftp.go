@@ -1234,7 +1234,18 @@ func (m SftpModel) hitTestEntry(x, y int) (Pane, int, bool) {
 }
 
 func (m SftpModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	if m.ShowInfo || m.ShowHelp || m.PromptAction != "" || m.ConfirmAction != "" || len(m.BookmarkList) > 0 {
+	if m.ShowHelp {
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			if m.HelpScroll > 0 {
+				m.HelpScroll--
+			}
+		case tea.MouseButtonWheelDown:
+			m.HelpScroll++
+		}
+		return m, nil
+	}
+	if m.ShowInfo || m.PromptAction != "" || m.ConfirmAction != "" || len(m.BookmarkList) > 0 {
 		return m, nil
 	}
 
