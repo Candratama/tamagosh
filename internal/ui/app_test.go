@@ -56,9 +56,9 @@ func TestAppFormSubmitAddsConnection(t *testing.T) {
 	a.Mode = ModeList
 	a, _ = updateApp(a, NewFormMsg{})
 	a, _ = updateApp(a, FormSubmitMsg{
-		IsEdit:   false,
-		Conn:     config.Connection{Name: "a", Host: "h", Port: 22, User: "u", PassKey: "ssh/a"},
-		Password: "pw",
+		IsEdit: false,
+		Conn:   config.Connection{Name: "a", Host: "h", Port: 22, User: "u", PassKey: "ssh/a"},
+		Secret: FormSecret{Password: "pw"},
 	})
 	if len(a.Store.Connections) != 1 || a.Store.Connections[0].Name != "a" {
 		t.Fatalf("store=%+v", a.Store)

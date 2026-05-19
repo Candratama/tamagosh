@@ -163,8 +163,8 @@ func (a AppModel) handleSubmit(m FormSubmitMsg) (tea.Model, tea.Cmd) {
 				return a, nil
 			}
 		}
-		if m.Password != "" {
-			if err := a.Pass.Set(m.Conn.PassKey, m.Password); err != nil {
+		if m.Secret.Password != "" {
+			if err := a.Pass.Set(m.Conn.PassKey, m.Secret.Password); err != nil {
 				a.Form.Err = err.Error()
 				return a, nil
 			}
@@ -174,7 +174,7 @@ func (a AppModel) handleSubmit(m FormSubmitMsg) (tea.Model, tea.Cmd) {
 			a.Form.Err = err.Error()
 			return a, nil
 		}
-		if err := a.Pass.Set(m.Conn.PassKey, m.Password); err != nil {
+		if err := a.Pass.Set(m.Conn.PassKey, m.Secret.Password); err != nil {
 			a.Form.Err = err.Error()
 			return a, nil
 		}
