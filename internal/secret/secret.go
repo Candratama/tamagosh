@@ -155,6 +155,9 @@ func (s *Store) Delete(key string) error {
 	return s.writeSecrets(m)
 }
 
+// passphraseSuffix namespaces SSH key passphrases under the same encrypted
+// store as passwords. Callers must not pass keys already ending in this
+// suffix; the form layer rejects ':' in connection names to keep this safe.
 const passphraseSuffix = ":passphrase"
 
 func (s *Store) GetPassphrase(key string) (string, error) {

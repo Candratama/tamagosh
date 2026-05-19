@@ -15,7 +15,7 @@ type Connection struct {
 	Port       int    `json:"port"`
 	User       string `json:"user"`
 	PassKey    string `json:"pass_key"`
-	AuthMethod string `json:"auth_method,omitempty"`
+	AuthMethod string `json:"auth_method"`
 	KeyPath    string `json:"key_path,omitempty"`
 }
 
